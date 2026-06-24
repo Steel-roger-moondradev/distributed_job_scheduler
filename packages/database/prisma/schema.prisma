@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Job {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  payload        Json
+  type           String
+  cronExpression String?
+  active         Boolean @default(true)
+  priority       Int @default(0)
+  nextRunAt      DateTime?
+  maxRetries     Int @default(3)
+  timeoutMs      Int @default(30000)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model JobRun {
+  id          String   @id @default(cuid())
+  jobId       String
+  status      String
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model FailedJob {
+  id          String   @id @default(cuid())
+  jobId       String
+  error       String
+  retryCount  Int      @default(0)
+  failedAt    DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
