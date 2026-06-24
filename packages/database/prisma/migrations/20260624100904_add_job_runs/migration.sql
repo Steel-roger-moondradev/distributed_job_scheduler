@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "JobRunStatus" AS ENUM ('PENDING', 'RUNNING', 'SUCCESS', 'FAILED');
+
+-- AddForeignKey
+ALTER TABLE "JobRun" ADD CONSTRAINT "JobRun_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

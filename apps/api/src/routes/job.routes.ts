@@ -1,6 +1,5 @@
 import { Router } from "express";
 import * as JobController from "../controllers/jobcontroller.js";
-// job creation
 import {
   createJob,
   deleteJob,

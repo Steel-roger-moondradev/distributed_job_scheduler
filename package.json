@@ -12,5 +12,9 @@
     "dev": "npm run dev --workspaces",
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces"
+  },
+  "dependencies": {
+    "bullmq": "^5.79.1",
+    "ioredis": "5.10.1"
   }
 }

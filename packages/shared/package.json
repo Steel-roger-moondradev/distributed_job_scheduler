@@ -1,11 +1,12 @@
 {
-  "name": "scheduler",
+  "name": "shared",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "./src/redis.ts",
+  "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/redis.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/redis.js"
   },
   "keywords": [],
   "author": "",
