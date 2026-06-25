@@ -1,11 +1,12 @@
 import { jobWorker } from "./workers/job.worker.js";
+import { logger } from "observability";
 
-console.log("Worker started");
+logger.info("Worker started");
 
 jobWorker.on("completed", (job) => {
-  console.log(`Job ${job.id} completed`);
+  logger.info({ jobId: job.id }, "Job enqueued task completed in queue");
 });
 
 jobWorker.on("failed", (job, err) => {
-  console.error(`Job ${job?.id} failed`, err);
+  logger.error({ jobId: job?.id, error: String(err) }, "Job enqueued task failed in queue");
 });

@@ -9,14 +9,16 @@
     "start": "node dist/app.js"
   },
   "dependencies": {
-    "database": "*",
-    "shared": "*",
     "cors": "^2.8.6",
+    "cron-parser": "^5.6.1",
+    "database": "*",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "helmet": "^8.2.0",
+    "observability": "*",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
+    "shared": "*",
     "zod": "^4.4.3"
   },
   "devDependencies": {

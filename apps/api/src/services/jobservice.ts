@@ -1,10 +1,11 @@
-import { jobQueue } from "shared/src/queue/queue.js";
 import { prisma } from "database";
+import { Prisma } from "@prisma/client";
+import { parseExpression } from "cron-parser";
 
 interface CreateJobInput {
   name: string;
   description?: string;
-  payload: unknown;
+  payload: Prisma.InputJsonValue;
   type: "ONCE" | "DELAYED" | "CRON";
   cronExpression?: string;
   delaySeconds?: number;
@@ -26,6 +27,12 @@ export async function createJob(data: CreateJobInput) {
     nextRunAt = new Date();
   } else if (type === "DELAYED") {
     nextRunAt = new Date(Date.now() + delaySeconds * 1000);
+  } else if (type === "CRON" && cronExpression) {
+    try {
+      nextRunAt = parser.parseExpression(cronExpression).next().toDate();
+    } catch (error) {
+      throw new Error(`Invalid cron expression: ${String(error)}`);
+    }
   }
 
   const job = await prisma.job.create({
@@ -36,23 +43,9 @@ export async function createJob(data: CreateJobInput) {
       type,
       cronExpression,
       nextRunAt,
+      status: "ACTIVE",
     },
   });
-
-  // Queue only immediate and delayed jobs.
-  // CRON jobs will be queued by the scheduler on Day 4.
-  if (type === "ONCE" || type === "DELAYED") {
-    await jobQueue.add(
-      "execute-job",
-      {
-        jobId: job.id,
-      },
-      {
-        attempts: job.maxRetries,
-        delay: type === "DELAYED" ? delaySeconds * 1000 : 0,
-      },
-    );
-  }
 
   return job;
 }

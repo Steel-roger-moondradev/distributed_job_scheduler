@@ -1,0 +1,19 @@
+{
+  "name": "observability",
+  "version": "1.0.0",
+  "main": "./src/index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}
