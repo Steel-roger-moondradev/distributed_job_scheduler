@@ -1,12 +1,12 @@
 {
   "name": "shared",
   "version": "1.0.0",
-  "main": "./src/redis.ts",
+  "main": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/redis.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/redis.js"
+    "start": "node dist/index.js"
   },
   "keywords": [],
   "author": "",

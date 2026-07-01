@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import * as JobService from "../services/jobservice.js";
 import { logAudit } from "../services/audit.service.js";
 import { prisma } from "database";
+import { connection } from "shared/dist/redis.js";
 
 interface JobParams {
   id: string;
@@ -10,7 +11,16 @@ interface JobParams {
 export async function createJob(req: Request, res: Response) {
   const job = await JobService.createJob(req.body);
 
+  if (!job) {
+    return res.status(404).json({
+      message: "Job not found",
+    });
+  }
+
   await logAudit("JOB_CREATED", job.id);
+  console.log("REDIS_URL =", process.env.REDIS_URL);
+  console.log("Redis status =", connection.status);
+  console.log("Redis options =", connection.options);
 
   res.status(201).json(job);
 }

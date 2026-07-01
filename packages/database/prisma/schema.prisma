@@ -16,54 +16,55 @@ model User {
 }
 
 model Job {
-  id             String    @id @default(cuid())
+  id             String   @id @default(cuid())
   name           String
   description    String?
   payload        Json
   type           String
   cronExpression String?
-  active         Boolean   @default(true)
-  priority       Int       @default(0)
+  active         Boolean  @default(true)
+  priority       Int      @default(0)
   nextRunAt      DateTime?
-  maxRetries     Int       @default(3)
-  timeoutMs      Int       @default(30000)
-  status         String    @default("ACTIVE")
+  maxRetries     Int      @default(3)
+  timeoutMs      Int      @default(30000)
 
-  runs JobRun[]
+  status JobStatus @default(ACTIVE)
 
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  failedJobs FailedJob[]
+  runs           JobRun[]
+  failedJobs     FailedJob[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model JobRun {
-  id String @id @default(cuid())
+  id          String   @id @default(cuid())
 
-  jobId String
-  job   Job    @relation(fields: [jobId], references: [id])
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id])
 
   status JobRunStatus
 
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
-  error      String?
-  duration   Int?
-  workerId   String?
-  attempts   Int       @default(1)
+  startedAt DateTime @default(now())
+  finishedAt  DateTime?
+  error       String?
+  duration    Int?
+  workerId    String?
+  attempts    Int           @default(1)
 
-  createdAt DateTime @default(now())
+  createdAt   DateTime @default(now())
 }
 
 model FailedJob {
-  id String @id @default(cuid())
+  id         String   @id @default(cuid())
 
-  jobId   String
-  payload Json
-  reason  String
+  jobId      String
+  payload    Json
+  reason     String
+  attempts   Int
 
-  failedAt DateTime @default(now())
-
-  createdAt DateTime @default(now())
+  failedAt   DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 }
@@ -82,4 +83,12 @@ enum JobRunStatus {
   RUNNING
   SUCCESS
   FAILED
+}
+enum JobStatus {
+  ACTIVE
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  PAUSED
 }

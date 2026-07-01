@@ -1,7 +1,7 @@
+import { jobQueue } from "shared/src/queue/queue.js";
 import { prisma } from "database";
 import { Prisma } from "@prisma/client";
-import { parseExpression } from "cron-parser";
-
+import { connection } from "shared";
 interface CreateJobInput {
   name: string;
   description?: string;
@@ -23,16 +23,28 @@ export async function createJob(data: CreateJobInput) {
 
   let nextRunAt: Date | null = null;
 
-  if (type === "ONCE") {
-    nextRunAt = new Date();
-  } else if (type === "DELAYED") {
-    nextRunAt = new Date(Date.now() + delaySeconds * 1000);
-  } else if (type === "CRON" && cronExpression) {
-    try {
-      nextRunAt = parser.parseExpression(cronExpression).next().toDate();
-    } catch (error) {
-      throw new Error(`Invalid cron expression: ${String(error)}`);
-    }
+  switch (type) {
+    case "ONCE":
+      // Run immediately
+      nextRunAt = new Date();
+      break;
+
+    case "DELAYED":
+      // Run after the specified delay
+      nextRunAt = new Date(Date.now() + delaySeconds * 1000);
+      break;
+
+    case "CRON":
+      // The scheduler will calculate the next execution time
+      if (!cronExpression) {
+        throw new Error("cronExpression is required for CRON jobs");
+      }
+
+      nextRunAt = null;
+      break;
+
+    default:
+      throw new Error("Invalid job type");
   }
 
   const job = await prisma.job.create({
@@ -44,9 +56,12 @@ export async function createJob(data: CreateJobInput) {
       cronExpression,
       nextRunAt,
       status: "ACTIVE",
+      active: true,
     },
   });
-
+  console.log("REDIS_URL =", process.env.REDIS_URL);
+  console.log("Redis status =", connection.status);
+  console.log("Redis options =", connection.options);
   return job;
 }
 

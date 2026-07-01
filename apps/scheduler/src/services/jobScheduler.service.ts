@@ -1,5 +1,5 @@
 import { prisma } from "database";
-import { jobQueue } from "shared/src/queue/queue.js";
+import { jobQueue } from "shared";
 import { logger } from "observability";
 
 /**
@@ -8,6 +8,23 @@ import { logger } from "observability";
  */
 export async function scheduleDueJobs(): Promise<void> {
   const now = new Date();
+  logger.info(
+    {
+      now: now.toISOString(),
+    },
+    "Current time",
+  );
+
+  const allJobs = await prisma.job.findMany();
+
+  logger.info(
+    {
+      totalJobs: allJobs.length,
+    },
+    "Total jobs in database",
+  );
+
+  logger.info(allJobs);
 
   // Find all active and due jobs
   const dueJobs = await prisma.job.findMany({
@@ -22,6 +39,12 @@ export async function scheduleDueJobs(): Promise<void> {
       nextRunAt: "asc",
     },
   });
+  logger.info(
+    {
+      dueJobs: dueJobs.length,
+    },
+    "Due jobs",
+  );
 
   if (dueJobs.length > 0) {
     logger.info({ count: dueJobs.length }, "Jobs found");
@@ -38,16 +61,17 @@ export async function scheduleDueJobs(): Promise<void> {
       });
 
       // Enqueue to BullMQ containing ONLY jobId
-      await jobQueue.add(
-        "execute-job",
+      const bullJob = await jobQueue.add("execute-job", {
+        jobId: job.id,
+      });
+
+      logger.info(
         {
-          jobId: job.id,
+          bullJobId: bullJob.id,
+          queueName: bullJob.queueName,
+          data: bullJob.data,
         },
-        {
-          attempts: job.maxRetries,
-          removeOnComplete: true,
-          removeOnFail: false,
-        },
+        "BullMQ job created",
       );
 
       logger.info({ jobId: job.id, name: job.name }, "Jobs queued");

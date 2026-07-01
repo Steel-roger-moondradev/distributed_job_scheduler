@@ -1,24 +1,23 @@
-import { processJobs } from "./scheduler.js";
 import { logger } from "observability";
+import { startScheduler } from "./scheduler.js";
+import { connection } from "shared/dist/redis.js";
 
-logger.info("Scheduler started");
+logger.info("Scheduler service started");
 
-// Immediately poll once on startup
-(async () => {
-  logger.info("Polling");
-  try {
-    await processJobs();
-  } catch (error) {
-    logger.error(error, "Error during initial scheduler poll");
-  }
-})();
+process.on("SIGINT", () => {
+  logger.info("Received SIGINT. Shutting down scheduler...");
+  process.exit(0);
+});
 
-// Continue polling every 30 seconds (30000ms)
-setInterval(async () => {
-  logger.info("Polling");
-  try {
-    await processJobs();
-  } catch (error) {
-    logger.error(error, "Error during scheduler poll");
-  }
-}, 30000);
+process.on("SIGTERM", () => {
+  logger.info("Received SIGTERM. Shutting down scheduler...");
+  process.exit(0);
+});
+
+startScheduler().catch((error) => {
+  logger.error(error, "Scheduler crashed");
+  process.exit(1);
+});
+console.log("REDIS_URL =", process.env.REDIS_URL);
+console.log("Redis status =", connection.status);
+console.log("Redis options =", connection.options);
