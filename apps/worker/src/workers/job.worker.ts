@@ -20,7 +20,7 @@ export const jobWorker = new Worker(
 
     logger.info({ jobId }, "Worker executing");
 
-    // Fetch the job details from PostgreSQL
+    //    Fetch the job details from PostgreSQL
     const dbJob = await prisma.job.findUnique({
       where: { id: jobId },
     });
@@ -33,22 +33,59 @@ export const jobWorker = new Worker(
       throw err;
     }
 
-    const startedAt = new Date();
+    let startedAt = new Date();
 
-    // Create JobRun entry recording start details
-    const run = await prisma.jobRun.create({
-      data: {
-        jobId,
-        status: JobRunStatus.RUNNING,
-        workerId: process.env.WORKER_ID || "worker-1",
-        attempts: job.attemptsMade + 1,
-        startedAt,
-      },
-    });
+    let runId = job.data.runId;
+
+    if (!runId) {
+      startedAt = new Date();
+      const run = await prisma.jobRun.create({
+        data: {
+          jobId,
+          status: JobRunStatus.RUNNING,
+          workerId: process.env.WORKER_ID || "worker-1",
+          attempts: 1,
+          startedAt,
+        },
+      });
+
+      runId = run.id;
+
+      await job.updateData({
+        ...job.data,
+        runId,
+      });
+    } else {
+      const run = await prisma.jobRun.findUnique({
+        where: {
+          id: runId,
+        },
+      });
+
+      if (!run) {
+        throw new Error(`JobRun ${runId} not found`);
+      }
+
+      startedAt = run.startedAt;
+      await prisma.jobRun.update({
+        where: {
+          id: runId,
+        },
+        data: {
+          status: JobRunStatus.RUNNING,
+          attempts: job.attemptsMade + 1,
+          error: null,
+
+          finishedAt: null,
+
+          duration: null,
+        },
+      });
+    }
 
     logger.info({ jobId, attempt: job.attemptsMade + 1 }, "Running Job");
 
-    // Update Job status to RUNNING in database
+    //  Update Job status to RUNNING in database
     await prisma.job.update({
       where: { id: jobId },
       data: {
@@ -57,59 +94,61 @@ export const jobWorker = new Worker(
     });
 
     try {
-      throw new Error("Testing Retry");
-      // // Simulate execution (3000ms delay)
-      // await new Promise((resolve) => setTimeout(resolve, 3000));
+      //   Simulate execution (3000ms delay)
+      await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      // const finishedAt = new Date();
-      // const duration = finishedAt.getTime() - startedAt.getTime();
+      const finishedAt = new Date();
+      const duration = finishedAt.getTime() - startedAt.getTime();
 
-      // let nextStatus: JobStatus = JobStatus.COMPLETED;
-      // let nextRunAt: Date | null = null;
+      let nextStatus: JobStatus = JobStatus.COMPLETED;
+      let nextRunAt: Date | null = null;
 
-      // if (dbJob.type === "CRON" && dbJob.cronExpression) {
-      //   nextStatus = JobStatus.ACTIVE;
-      //   try {
-      //     const interval = CronExpressionParser.parse(dbJob.cronExpression);
-      //     nextRunAt = interval.next().toDate();
-      //     logger.info(
-      //       { jobId, nextRunAt: nextRunAt.toISOString() },
-      //       "Cron next execution",
-      //     );
-      //   } catch (cronError) {
-      //     logger.error(
-      //       {
-      //         jobId,
-      //         cronExpression: dbJob.cronExpression,
-      //         error: String(cronError),
-      //       },
-      //       "Cron parsing error on success transition",
-      //     );
-      //     nextStatus = JobStatus.FAILED;
-      //   }
-      // }
+      if (dbJob.type === "CRON" && dbJob.cronExpression) {
+        nextStatus = JobStatus.ACTIVE;
+        try {
+          const interval = CronExpressionParser.parse(dbJob.cronExpression);
+          nextRunAt = interval.next().toDate();
+          logger.info(
+            { jobId, nextRunAt: nextRunAt.toISOString() },
+            "Cron next execution",
+          );
+        } catch (cronError) {
+          logger.error(
+            {
+              jobId,
+              cronExpression: dbJob.cronExpression,
+              error: String(cronError),
+            },
+            "Cron parsing error on success transition",
+          );
+          nextStatus = JobStatus.FAILED;
+        }
+      }
 
-      // // Atomically update both job schedule and run history status
-      // await prisma.$transaction([
-      //   prisma.job.update({
-      //     where: { id: jobId },
-      //     data: {
-      //       status: nextStatus,
-      //       nextRunAt,
-      //     },
-      //   }),
-      //   prisma.jobRun.update({
-      //     where: { id: run.id },
-      //     data: {
-      //       status: JobRunStatus.SUCCESS,
-      //       finishedAt,
-      //       duration,
-      //     },
-      //   }),
-      // ]);
+      //  Atomically update both job schedule and run history status
+      await prisma.$transaction([
+        prisma.job.update({
+          where: { id: jobId },
+          data: {
+            status: nextStatus,
+            nextRunAt,
+          },
+        }),
+        prisma.jobRun.update({
+          where: { id: runId },
+          data: {
+            status: JobRunStatus.SUCCESS,
+            finishedAt,
+            duration,
+          },
+        }),
+      ]);
 
-      // logger.info({ jobId, attempt: job.attemptsMade + 1 }, "Completed Job");
+      logger.info({ jobId, attempt: job.attemptsMade + 1 }, "Completed Job");
     } catch (error) {
+      const maxAttempts = job.opts.attempts ?? 1;
+      const failedAttempts = job.attemptsMade + 1;
+      const isLastAttempt = failedAttempts >= maxAttempts;
       const finishedAt = new Date();
       const duration = finishedAt.getTime() - startedAt.getTime();
 
@@ -118,7 +157,7 @@ export const jobWorker = new Worker(
       let nextStatus: JobStatus = JobStatus.FAILED;
       let nextRunAt: Date | null = null;
 
-      if (dbJob.type === "CRON" && dbJob.cronExpression) {
+      if (isLastAttempt && dbJob.type === "CRON" && dbJob.cronExpression) {
         nextStatus = JobStatus.ACTIVE;
         try {
           const interval = CronExpressionParser.parse(dbJob.cronExpression);
@@ -140,27 +179,28 @@ export const jobWorker = new Worker(
         }
       }
 
-      await prisma.$transaction([
-        prisma.job.update({
+      await prisma.jobRun.update({
+        where: {
+          id: runId,
+        },
+        data: {
+          status: JobRunStatus.FAILED,
+          attempts: failedAttempts,
+          finishedAt,
+          error: String(error),
+          duration,
+        },
+      });
+
+      if (isLastAttempt) {
+        await prisma.job.update({
           where: { id: jobId },
           data: {
             status: nextStatus,
             nextRunAt,
           },
-        }),
-        prisma.jobRun.update({
-          where: { id: run.id },
-          data: {
-            status: JobRunStatus.FAILED,
-            finishedAt,
-            error: String(error),
-            duration,
-          },
-        }),
-      ]);
-
-      const maxAttempts = job.opts.attempts ?? 1;
-      const failedAttempts = job.attemptsMade + 1;
+        });
+      }
 
       if (failedAttempts < maxAttempts) {
         logger.warn(

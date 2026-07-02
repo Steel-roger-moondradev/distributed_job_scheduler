@@ -1,7 +1,8 @@
 import { jobQueue } from "shared/src/queue/queue.js";
 import { prisma } from "database";
 import { Prisma } from "@prisma/client";
-import { connection } from "shared";
+import { CronExpressionParser } from "cron-parser";
+
 interface CreateJobInput {
   name: string;
   description?: string;
@@ -11,6 +12,10 @@ interface CreateJobInput {
   delaySeconds?: number;
 }
 
+export function getNextCronRun(expression: string): Date {
+  const interval = CronExpressionParser.parse(expression);
+  return interval.next().toDate();
+}
 export async function createJob(data: CreateJobInput) {
   const {
     name,
@@ -35,12 +40,12 @@ export async function createJob(data: CreateJobInput) {
       break;
 
     case "CRON":
-      // The scheduler will calculate the next execution time
+      // Schedule first execution
       if (!cronExpression) {
         throw new Error("cronExpression is required for CRON jobs");
       }
 
-      nextRunAt = null;
+      nextRunAt = getNextCronRun(cronExpression);
       break;
 
     default:
@@ -59,9 +64,7 @@ export async function createJob(data: CreateJobInput) {
       active: true,
     },
   });
-  console.log("REDIS_URL =", process.env.REDIS_URL);
-  console.log("Redis status =", connection.status);
-  console.log("Redis options =", connection.options);
+
   return job;
 }
 
