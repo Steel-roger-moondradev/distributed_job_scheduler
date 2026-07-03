@@ -13,12 +13,14 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "shared": "*",
     "typescript": "^6.0.3"
   },
   "dependencies": {
     "cron-parser": "^5.6.1",
     "database": "*",
+    "express": "^5.2.1",
     "observability": "*",
     "shared": "*"
   }

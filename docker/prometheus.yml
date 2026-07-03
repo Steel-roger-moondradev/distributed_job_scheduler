@@ -2,9 +2,17 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: "api"
-    metrics_path: /metrics
-
+  - job_name: api
     static_configs:
       - targets:
           - host.docker.internal:5000
+
+  - job_name: worker
+    static_configs:
+      - targets:
+          - host.docker.internal:5001
+
+  - job_name: scheduler
+    static_configs:
+      - targets:
+          - host.docker.internal:5002

@@ -1,7 +1,16 @@
-import { logger } from "observability";
+import { logger, register } from "observability";
 import { startScheduler } from "./scheduler.js";
 import { connection } from "shared";
+import express from "express";
 
+const app = express();
+
+app.get("/metrics", async (_, res) => {
+  res.setHeader("Content-Type", register.contentType);
+  res.end(await register.metrics());
+});
+
+app.listen(5002);
 logger.info("Scheduler service started");
 
 process.on("SIGINT", () => {

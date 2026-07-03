@@ -4,7 +4,19 @@ import "./workers/job.worker.js";
 
 console.log("After worker import");
 import { connection, initializeQueueEvents } from "shared";
-import { logger } from "observability";
+import { logger, register } from "observability";
+import express from "express";
+
+const app = express();
+
+app.get("/metrics", async (req, res) => {
+  res.setHeader("Content-Type", register.contentType);
+  res.end(await register.metrics());
+});
+
+app.listen(5001, () => {
+  console.log("Worker metrics on :5001");
+});
 
 async function start() {
   await initializeQueueEvents();
