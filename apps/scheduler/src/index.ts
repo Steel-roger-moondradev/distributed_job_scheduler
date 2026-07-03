@@ -1,6 +1,6 @@
 import { logger } from "observability";
 import { startScheduler } from "./scheduler.js";
-import { connection } from "shared/dist/redis.js";
+import { connection } from "shared";
 
 logger.info("Scheduler service started");
 

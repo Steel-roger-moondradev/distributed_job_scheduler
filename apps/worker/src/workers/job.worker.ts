@@ -1,7 +1,13 @@
 import { Worker } from "bullmq";
 import { prisma } from "database";
 import { connection } from "shared";
-import { logger } from "observability";
+import {
+  jobDuration,
+  jobsCompleted,
+  jobsFailed,
+  logger,
+  workerThroughput,
+} from "observability";
 import { CronExpressionParser } from "cron-parser";
 import { JobStatus, JobRunStatus } from "@prisma/client";
 
@@ -15,6 +21,7 @@ export const jobWorker = new Worker(
         "Job execution failed: No jobId provided in enqueued payload",
       );
       logger.error(err.message);
+      jobsFailed.inc();
       throw err;
     }
 
@@ -92,9 +99,13 @@ export const jobWorker = new Worker(
         status: JobStatus.RUNNING,
       },
     });
+    const start = Date.now();
 
     try {
       //   Simulate execution (3000ms delay)
+      const duration2 = (Date.now() - start) / 1000;
+
+      jobDuration.observe(duration2);
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
       const finishedAt = new Date();
@@ -143,9 +154,14 @@ export const jobWorker = new Worker(
           },
         }),
       ]);
+      jobsCompleted.inc();
+      workerThroughput.inc();
 
       logger.info({ jobId, attempt: job.attemptsMade + 1 }, "Completed Job");
     } catch (error) {
+      const duration2 = (Date.now() - start) / 1000;
+
+      jobDuration.observe(duration2);
       const maxAttempts = job.opts.attempts ?? 1;
       const failedAttempts = job.attemptsMade + 1;
       const isLastAttempt = failedAttempts >= maxAttempts;
@@ -213,6 +229,8 @@ export const jobWorker = new Worker(
           "Job Failed",
         );
       }
+      jobsFailed.inc();
+      workerThroughput.inc();
 
       throw error;
     }

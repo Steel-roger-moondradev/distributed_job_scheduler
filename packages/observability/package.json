@@ -1,15 +1,19 @@
 {
   "name": "observability",
   "version": "1.0.0",
-  "main": "./src/index.ts",
   "type": "module",
-  "scripts": {
-    "build": "tsc"
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
   "dependencies": {
     "pino": "^10.3.1"
   },

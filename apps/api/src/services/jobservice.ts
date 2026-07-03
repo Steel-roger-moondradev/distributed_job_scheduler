@@ -1,6 +1,4 @@
-import { jobQueue } from "shared/src/queue/queue.js";
-import { prisma } from "database";
-import { Prisma } from "@prisma/client";
+import { Prisma, prisma } from "database";
 import { CronExpressionParser } from "cron-parser";
 
 interface CreateJobInput {
