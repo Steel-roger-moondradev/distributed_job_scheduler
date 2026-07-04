@@ -9,6 +9,30 @@ import express from "express";
 
 const app = express();
 
+const workerId = `worker-${process.pid}`;
+
+setInterval(async () => {
+  await connection.set(`worker:${workerId}:heartbeat`, Date.now(), "EX", 10);
+}, 5000);
+
+app.get("/workers", async (_, res) => {
+  const keys = await connection.keys("worker:*:heartbeat");
+
+  const workers = await Promise.all(
+    keys.map(async (key) => {
+      const lastSeen = await connection.get(key);
+
+      return {
+        id: key.split(":")[1],
+        status: "connected",
+        lastSeen: Number(lastSeen),
+      };
+    }),
+  );
+
+  res.json(workers);
+});
+
 app.get("/metrics", async (req, res) => {
   res.setHeader("Content-Type", register.contentType);
   res.end(await register.metrics());

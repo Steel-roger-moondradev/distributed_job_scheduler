@@ -1,0 +1,31 @@
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import DashboardLayout from "./layouts/DashboardLayout.js";
+import DashboardPage from "./pages/DashboardPage.js";
+import JobsPage from "./pages/JobsPage.js";
+import JobDetailsPage from "./pages/JobDetailsPage.js";
+import FailedJobsPage from "./pages/FailedJobsPage.js";
+import NotFound from "./pages/NotFound.js";
+import { Toaster } from "react-hot-toast";
+import CreateJob from "./components/CreateJob.js";
+import { Worker } from "./components/Worker.js";
+
+export default function App() {
+  return (
+    <>
+      {/* Global toast container */}
+      <Toaster position="top-right" reverseOrder={false} />
+      <Routes>
+        <Route element={<DashboardLayout />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/jobs" element={<JobsPage />} />
+          <Route path="/jobs/:id" element={<JobDetailsPage />} />
+          <Route path="/jobs/create" element={<CreateJob />} />
+          <Route path="/failed" element={<FailedJobsPage />} />
+          <Route path="/workers" element={<Worker />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    </>
+  );
+}

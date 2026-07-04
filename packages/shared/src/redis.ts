@@ -8,3 +8,16 @@ export const connection = new Redis(
     maxRetriesPerRequest: null,
   },
 );
+
+export const getRedisStatus = async () => {
+  let redis = "disconnected";
+
+  try {
+    await connection.ping();
+    redis = "connected";
+  } catch {
+    redis = "disconnected";
+  }
+
+  return redis;
+};

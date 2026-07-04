@@ -4,21 +4,33 @@ import { httpLogger } from "./middlewares/logger.middleware.js";
 import jobRoutes from "./routes/job.routes.js";
 import { register, queueDepth } from "observability";
 import { jobQueue } from "shared";
+import cors from "cors";
+import healthRouter from "./routes/health.routes.js";
 
 dotenv.config();
 
 const app = express();
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: false,
+  }),
+);
 
 app.use(express.json());
 app.use(httpLogger);
 
 const port = 5000;
 
-app.get("/health", (req, res) => {
-  res.send("API is healthy!");
-});
+app.get("/jobs/dashboard", async (req, res) => {
+  const size = await jobQueue.getWaitingCount();
 
+  res.json(size);
+});
 app.use("/jobs", jobRoutes);
+
+app.use("/health", healthRouter);
 
 app.get("/metrics", async (req, res) => {
   const waiting = await jobQueue.getWaitingCount();
@@ -26,6 +38,12 @@ app.get("/metrics", async (req, res) => {
 
   res.setHeader("Content-Type", register.contentType);
   res.end(await register.metrics());
+});
+
+app.get("/jobs/dashboard", async (req, res) => {
+  const size = await jobQueue.getWaitingCount();
+
+  res.json(size);
 });
 
 app.listen(port, () => {

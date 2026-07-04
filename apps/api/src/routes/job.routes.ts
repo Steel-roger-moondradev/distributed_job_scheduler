@@ -1,8 +1,8 @@
 import { Router } from "express";
-import * as JobController from "../controllers/jobcontroller.js";
 import {
   createJob,
   deleteJob,
+  failedJob,
   getJob,
   getJobs,
   pauseJobHandler,
@@ -26,4 +26,5 @@ router.patch("/:id/pause", validate(jobIdSchema, "params"), pauseJobHandler);
 
 router.patch("/:id/resume", validate(jobIdSchema, "params"), resumeJobHandler);
 
+router.get("/failed", failedJob);
 export default router;

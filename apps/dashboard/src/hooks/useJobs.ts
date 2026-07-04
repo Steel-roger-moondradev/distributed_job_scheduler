@@ -1,15 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { getJob } from "../api/job.js";
+import { getJobs } from "../api/job.js";
 import { Job } from "../type/job.js";
 
-export function useJob(id: string) {
-  return useQuery<Job>({
-    queryKey: ["job", id],
+export function useJobs() {
+  return useQuery<Job[]>({
+    queryKey: ["jobs"],
     queryFn: async () => {
-      const { data } = await getJob(id);
+      const { data } = await getJobs();
       return data;
     },
-    enabled: !!id,
     staleTime: 0,
     refetchInterval: 5000,
   });

@@ -3,6 +3,7 @@ import * as JobService from "../services/jobservice.js";
 import { logAudit } from "../services/audit.service.js";
 import { prisma } from "database";
 import { jobsCreated } from "observability";
+import { connection, getRedisStatus } from "shared";
 
 export async function createJob(req: Request, res: Response) {
   const job = await JobService.createJob(req.body);
@@ -72,4 +73,26 @@ export async function resumeJobHandler(req: Request, res: Response) {
   await logAudit("JOB_RESUMED", job.id);
 
   res.json(job);
+}
+export async function failedJob(req: Request, res: Response) {
+  const failedJobs = await JobService.getFailedJobs();
+  res.json(failedJobs);
+}
+
+export async function gethealth(req: Request, res: Response) {
+  const redisStatus = await getRedisStatus();
+  const statusdb = await prisma.$queryRaw`SELECT 1`
+    .then(() => "connected")
+    .catch(() => "disconnected");
+
+  const heartbeat = await connection.get("scheduler:heartbeat");
+
+  const schedulerStatus = heartbeat ? "connected" : "disconnected";
+  res.json({
+    redis: redisStatus,
+    database: statusdb,
+    scheduler: schedulerStatus,
+    api: "connected",
+    timestamp: new Date().toISOString(),
+  });
 }

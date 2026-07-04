@@ -89,3 +89,20 @@ export async function deleteJob(id: string) {
     },
   });
 }
+
+export async function getFailedJobs() {
+  return prisma.failedJob.findMany({
+    include: {
+      job: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+        },
+      },
+    },
+    orderBy: {
+      failedAt: "desc",
+    },
+  });
+}

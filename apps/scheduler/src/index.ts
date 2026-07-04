@@ -5,6 +5,10 @@ import express from "express";
 
 const app = express();
 
+setInterval(async () => {
+  await connection.set("scheduler:heartbeat", Date.now(), "EX", 10);
+}, 5000);
+
 app.get("/metrics", async (_, res) => {
   res.setHeader("Content-Type", register.contentType);
   res.end(await register.metrics());
