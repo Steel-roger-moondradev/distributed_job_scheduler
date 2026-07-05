@@ -23,16 +23,16 @@ app.use(httpLogger);
 
 const port = 5000;
 
+app.get("/jobs/dashboard", async (req, res) => {
+  const size = await jobQueue.getWaitingCount();
+  res.json(size);
+});
+
 app.get("/api/worker", async (req, res) => {
   const data = await connection.smembers("workers");
   res.json(data);
 });
 
-app.get("/jobs/dashboard", async (req, res) => {
-  const size = await jobQueue.getWaitingCount();
-
-  res.json({ size });
-});
 app.use("/jobs", jobRoutes);
 
 app.use("/health", healthRouter);

@@ -83,6 +83,7 @@ export async function getJob(id: string) {
 }
 
 export async function deleteJob(id: string) {
+  console.log(`Deleting job with id: ${id}`);
   return prisma.job.delete({
     where: {
       id,
@@ -103,6 +104,52 @@ export async function getFailedJobs() {
     },
     orderBy: {
       failedAt: "desc",
+    },
+  });
+}
+
+export async function getJobHistory(jobId: string) {
+  return prisma.jobRun.findMany({
+    where: {
+      jobId,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
+export async function getRecentExecutions() {
+  return prisma.jobRun.findMany({
+    take: 5,
+    orderBy: {
+      startedAt: "desc",
+    },
+    include: {
+      job: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
+}
+
+export async function getRecentFailedJobs() {
+  return prisma.failedJob.findMany({
+    take: 5,
+    orderBy: {
+      failedAt: "desc",
+    },
+    select: {
+      id: true,
+      reason: true,
+      attempts: true,
+      failedAt: true,
+      job: {
+        select: {
+          name: true,
+        },
+      },
     },
   });
 }

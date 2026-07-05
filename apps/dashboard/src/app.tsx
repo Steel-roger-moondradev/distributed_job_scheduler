@@ -1,4 +1,3 @@
-import React from "react";
 import { Routes, Route } from "react-router-dom";
 import DashboardLayout from "./layouts/DashboardLayout.js";
 import DashboardPage from "./pages/DashboardPage.js";
@@ -13,7 +12,6 @@ import { Workers } from "./pages/WorkerPage.js";
 export default function App() {
   return (
     <>
-      {/* Global toast container */}
       <Toaster position="top-right" reverseOrder={false} />
       <Routes>
         <Route element={<DashboardLayout />}>

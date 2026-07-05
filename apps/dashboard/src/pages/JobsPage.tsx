@@ -17,12 +17,10 @@ export default function JobsPage() {
 
   const { data: jobs, isLoading, isError, error, refetch } = useJobs();
 
-  // UI state for search / filters
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
 
-  // Delete‑confirmation modal
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handlePause = async (id: string) => {
@@ -67,9 +65,6 @@ export default function JobsPage() {
     }
   };
 
-  // -------------------------------------------------
-  // Filtering logic (simple, pure‑JS)
-  // -------------------------------------------------
   const filteredJobs = jobs?.filter((job) => {
     const matchesSearch = job.name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter ? job.status === statusFilter : true;
@@ -97,7 +92,9 @@ export default function JobsPage() {
         onView={(id) => navigate(`/jobs/${id}`)}
         onPause={handlePause}
         onResume={handleResume}
-        onDelete={(id) => setDeleteId(id)}
+        onDelete={(id) => {
+          setDeleteId(id);
+        }}
       />
       <ConfirmDeleteModal
         isOpen={!!deleteId}

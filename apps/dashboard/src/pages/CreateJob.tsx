@@ -1,5 +1,5 @@
 import { useState } from "react";
-import api from "../api/client.js"; // your axios instance
+import api from "../api/client.js";
 
 type JobType = "ONCE" | "DELAYED" | "CRON";
 

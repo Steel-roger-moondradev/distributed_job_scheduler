@@ -15,3 +15,23 @@ export interface JobRun {
   status: JobRunStatus;
   createdAt: string;
 }
+
+export interface RecentExecution {
+  id: string;
+  status: "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";
+  workerId: string | null;
+  startedAt: string;
+  duration: number | null;
+  job: {
+    name: string;
+  };
+}
+export interface RecentFailedJob {
+  id: string;
+  reason: string;
+  attempts: number;
+  failedAt: string;
+  job: {
+    name: string;
+  };
+}

@@ -227,7 +227,9 @@ export default function JobDetailsPage() {
             )}
 
             <button
-              onClick={() => setShowDelete(true)}
+              onClick={() => {
+                setShowDelete(true);
+              }}
               className="flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2 text-white hover:bg-red-700"
             >
               <Trash2 size={18} />
@@ -236,7 +238,6 @@ export default function JobDetailsPage() {
           </div>
         </div>
       </div>
-      {/* ========================= Overview ========================= */}
 
       <section className="space-y-4">
         <div>
@@ -254,19 +255,13 @@ export default function JobDetailsPage() {
           <StatusBadge status={job.status} />
         </InfoCard>
 
-        {/* Type */}
-
         <InfoCard title="Type">
           <p className="text-2xl font-semibold">{job.type}</p>
         </InfoCard>
 
-        {/* Priority */}
-
         <InfoCard title="Priority">
           <p className="text-2xl font-semibold">{job.priority}</p>
         </InfoCard>
-
-        {/* Active */}
 
         <InfoCard title="Active">
           <p
@@ -278,27 +273,19 @@ export default function JobDetailsPage() {
           </p>
         </InfoCard>
 
-        {/* Next Run */}
-
         <InfoCard title="Next Run">
           <p className="text-base font-medium">
             {job.nextRunAt ? formatDate(job.nextRunAt) : "—"}
           </p>
         </InfoCard>
 
-        {/* Timeout */}
-
         <InfoCard title="Timeout">
           <p className="mt-3 text-2xl font-semibold">{job.timeoutMs / 1000}s</p>
         </InfoCard>
 
-        {/* Retries */}
-
         <InfoCard title="Max Retries">
           <p className="mt-3 text-2xl font-semibold">{job.maxRetries}</p>
         </InfoCard>
-
-        {/* Created */}
 
         <InfoCard title="Created">
           <p className="mt-3 text-base font-medium">
@@ -306,8 +293,6 @@ export default function JobDetailsPage() {
           </p>
         </InfoCard>
       </div>
-
-      {/* ========================= Metadata ========================= */}
 
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-6 text-xl font-semibold">Metadata</h2>
@@ -340,7 +325,6 @@ export default function JobDetailsPage() {
           </div>
         </div>
       </section>
-      {/* ========================= Payload ========================= */}
 
       <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
@@ -367,7 +351,6 @@ export default function JobDetailsPage() {
           </pre>
         </div>
       </section>
-      {/* ========================= Execution History ========================= */}
 
       <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">

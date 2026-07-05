@@ -16,7 +16,6 @@ export function Workers() {
     const fetchWorkers = async () => {
       try {
         const { data } = await api.get("/api/worker");
-        console.log("fetched data", data);
         setWorkers(data);
       } catch (error) {
         console.error("Error fetching workers:", error);

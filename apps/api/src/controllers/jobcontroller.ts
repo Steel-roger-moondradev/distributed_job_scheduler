@@ -39,6 +39,7 @@ export async function getJob(req: Request, res: Response) {
 }
 
 export async function deleteJob(req: Request, res: Response) {
+  console.log(`Deleting job with id: ${req.params.id}`);
   await JobService.deleteJob(req.params.id as string);
   await logAudit("JOB_DELETED", req.params.id as string);
 
@@ -52,6 +53,7 @@ export async function pauseJobHandler(req: Request, res: Response) {
     },
     data: {
       active: false,
+      status: "PAUSED",
     },
   });
 
@@ -67,6 +69,7 @@ export async function resumeJobHandler(req: Request, res: Response) {
     },
     data: {
       active: true,
+      status: "ACTIVE",
     },
   });
 
@@ -96,3 +99,18 @@ export async function gethealth(req: Request, res: Response) {
     timestamp: new Date().toISOString(),
   });
 }
+
+export const getJobHistory = async (req: Request, res: Response) => {
+  const jobId = req.params.id;
+  const jobHistory = await JobService.getJobHistory(jobId as string);
+  res.json(jobHistory);
+};
+
+export const getRecentExecutions = async (req: Request, res: Response) => {
+  const executions = await JobService.getRecentExecutions();
+  res.json(executions);
+};
+export const getRecentFailedJobs = async (req: Request, res: Response) => {
+  const failedExecutions = await JobService.getRecentFailedJobs();
+  res.json(failedExecutions);
+};

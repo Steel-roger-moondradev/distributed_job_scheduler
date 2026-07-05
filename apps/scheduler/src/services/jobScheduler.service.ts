@@ -2,10 +2,6 @@ import { prisma } from "database";
 import { jobQueue } from "shared";
 import { logger } from "observability";
 
-/**
- * Finds all jobs where status is ACTIVE and nextRunAt is due (<= now),
- * enqueues them to BullMQ, and updates their status to QUEUED to prevent duplicate queueing.
- */
 export async function scheduleDueJobs(): Promise<void> {
   const now = new Date();
   logger.info(

@@ -43,14 +43,14 @@ export const jobWorker = new Worker(
     let startedAt = new Date();
 
     let runId = job.data.runId;
-
+    const workerId = `worker-${process.pid}`;
     if (!runId) {
       startedAt = new Date();
       const run = await prisma.jobRun.create({
         data: {
           jobId,
           status: JobRunStatus.RUNNING,
-          workerId: process.env.WORKER_ID || "worker-1",
+          workerId,
           attempts: 1,
           startedAt,
         },

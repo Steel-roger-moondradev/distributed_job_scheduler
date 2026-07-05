@@ -4,7 +4,10 @@ import {
   deleteJob,
   failedJob,
   getJob,
+  getJobHistory,
   getJobs,
+  getRecentExecutions,
+  getRecentFailedJobs,
   pauseJobHandler,
   resumeJobHandler,
 } from "../controllers/jobcontroller.js";
@@ -21,10 +24,14 @@ router.get("/failed", failedJob);
 
 router.get("/:id", validate(jobIdSchema, "params"), getJob);
 
-router.delete("/:id", validate(jobIdSchema, "params"), deleteJob);
+router.delete("/:id/delete", validate(jobIdSchema, "params"), deleteJob);
 
 router.patch("/:id/pause", validate(jobIdSchema, "params"), pauseJobHandler);
 
 router.patch("/:id/resume", validate(jobIdSchema, "params"), resumeJobHandler);
 
+router.get("/:id/history", validate(jobIdSchema, "params"), getJobHistory);
+
+router.get("/job-runs/recent", getRecentExecutions);
+router.get("/job-fails/recent", getRecentFailedJobs);
 export default router;
