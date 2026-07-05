@@ -7,8 +7,8 @@ import JobDetailsPage from "./pages/JobDetailsPage.js";
 import FailedJobsPage from "./pages/FailedJobsPage.js";
 import NotFound from "./pages/NotFound.js";
 import { Toaster } from "react-hot-toast";
-import CreateJob from "./components/CreateJob.js";
-import { Worker } from "./components/Worker.js";
+import CreateJob from "./pages/CreateJob.js";
+import { Workers } from "./pages/WorkerPage.js";
 
 export default function App() {
   return (
@@ -22,7 +22,8 @@ export default function App() {
           <Route path="/jobs/:id" element={<JobDetailsPage />} />
           <Route path="/jobs/create" element={<CreateJob />} />
           <Route path="/failed" element={<FailedJobsPage />} />
-          <Route path="/workers" element={<Worker />} />
+          <Route path="/workers" element={<Workers />} />
+          <Route path="/jobs/failed" element={<FailedJobsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

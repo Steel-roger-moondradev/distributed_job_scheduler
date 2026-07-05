@@ -17,6 +17,7 @@ const router = Router();
 router.post("/create", validate(createJobSchema), createJob);
 
 router.get("/get", getJobs);
+router.get("/failed", failedJob);
 
 router.get("/:id", validate(jobIdSchema, "params"), getJob);
 
@@ -26,5 +27,4 @@ router.patch("/:id/pause", validate(jobIdSchema, "params"), pauseJobHandler);
 
 router.patch("/:id/resume", validate(jobIdSchema, "params"), resumeJobHandler);
 
-router.get("/failed", failedJob);
 export default router;

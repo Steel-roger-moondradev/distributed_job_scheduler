@@ -1,8 +1,4 @@
-console.log("Before worker import");
-
 import "./workers/job.worker.js";
-
-console.log("After worker import");
 import { connection, initializeQueueEvents } from "shared";
 import { logger, register } from "observability";
 import express from "express";
@@ -11,27 +7,10 @@ const app = express();
 
 const workerId = `worker-${process.pid}`;
 
+await connection.sadd("workers", workerId);
 setInterval(async () => {
   await connection.set(`worker:${workerId}:heartbeat`, Date.now(), "EX", 10);
 }, 5000);
-
-app.get("/workers", async (_, res) => {
-  const keys = await connection.keys("worker:*:heartbeat");
-
-  const workers = await Promise.all(
-    keys.map(async (key) => {
-      const lastSeen = await connection.get(key);
-
-      return {
-        id: key.split(":")[1],
-        status: "connected",
-        lastSeen: Number(lastSeen),
-      };
-    }),
-  );
-
-  res.json(workers);
-});
 
 app.get("/metrics", async (req, res) => {
   res.setHeader("Content-Type", register.contentType);
@@ -39,7 +18,7 @@ app.get("/metrics", async (req, res) => {
 });
 
 app.listen(5001, () => {
-  console.log("Worker metrics on :5001");
+  logger.info("Worker metrics on :5001");
 });
 
 async function start() {
