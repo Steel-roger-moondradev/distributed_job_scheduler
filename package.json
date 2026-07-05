@@ -8,7 +8,12 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=database && npm run build --workspace=observability && npm run build --workspace=shared && npm run build --workspace=@scheduler/api && npm run build --workspace=scheduler && npm run build --workspace=worker",
+    "start": "concurrently \"npm run start:api\" \"npm run start:scheduler\" \"npm run start:worker\"",
+    "start:api": "node apps/api/dist/app.js",
+    "start:scheduler": "node apps/scheduler/dist/index.js",
+    "start:worker": "node apps/worker/dist/index.js",
+    "build": "npm run build:all",
+    "build:all": "npm run build --workspace=database && npm run build --workspace=observability && npm run build --workspace=shared && npm run build --workspace=@scheduler/api && npm run build --workspace=scheduler && npm run build --workspace=worker",
     "dev": "npm run dev --workspaces",
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces"
@@ -21,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
+    "concurrently": "^9.2.3",
     "typescript": "^5.9.3"
   }
 }
