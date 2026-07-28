@@ -631,6 +631,5 @@ This project is currently listed as `ISC` in the workspace package manifests.
 
 <!-- TODO: add your GitHub, LinkedIn, portfolio, or email here. -->
 
-- GitHub: TODO
-- LinkedIn: TODO
-- Portfolio: TODO
+- GitHub: [](https://github.com/Steel-roger-moondradev)
+- LinkedIn: [](https://www.linkedin.com/in/dev-moondra-56910a1b9/)
