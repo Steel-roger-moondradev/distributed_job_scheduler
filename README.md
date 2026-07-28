@@ -621,6 +621,23 @@ Suggested validation flows:
 ### Recent-failed-Jobs-section
 ![Dashboard Recent-failed-jobs](assets/dasbhoard-failedjobs.png)
 
+
+
+
+
+# Job-Details
+
+### Individual-Job-Page
+![Job-View-Page](assets/jobdetails.png)
+
+### Job-metadata
+![Job-Metadata](assets/jobdetails-metadata.png)
+
+### Job-Execution-history
+![Job-execution-history](assets/jobdetails-executionhistory.png)
+
+
+
 ---
 
 ## License
