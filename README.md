@@ -631,5 +631,7 @@ This project is currently listed as `ISC` in the workspace package manifests.
 
 <!-- TODO: add your GitHub, LinkedIn, portfolio, or email here. -->
 
-- GitHub: [](https://github.com/Steel-roger-moondradev)
-- LinkedIn: [](https://www.linkedin.com/in/dev-moondra-56910a1b9/)
+### Connect with Me
+
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Steel-roger-moondradev)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/dev-moondra-56910a1b9/)
