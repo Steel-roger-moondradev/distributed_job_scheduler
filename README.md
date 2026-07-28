@@ -613,9 +613,13 @@ Suggested validation flows:
 
 <!-- TODO: add screenshots or GIFs of the dashboard, job flow, and metrics views. -->
 
-| Dashboard | Job Details | Metrics |
-| --------- | ----------- | ------- |
-| TODO      | TODO        | TODO    |
+# Dashboard
+### Overview
+![Dashboard Overview](assets/dashboard-overview.png)
+### Recent-Executed-history
+![Dashboard Recent-Execution-History](assets/dashboard-execution-history.png)
+### Recent-failed-Jobs-section
+![Dashboard Recent-failed-jobs](assets/dasbhoard-failedjobs.png)
 
 ---
 
