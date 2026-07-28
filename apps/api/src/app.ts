@@ -52,5 +52,5 @@ app.get("/jobs/dashboard", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`API server is running at http://localhost:${port}`);
+  console.log(`API server is running at ${process.env.CORS_ORIGIN}`);
 });
