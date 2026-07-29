@@ -29,8 +29,22 @@ app.get("/jobs/dashboard", async (req, res) => {
 });
 
 app.get("/api/worker", async (req, res) => {
-  const data = await connection.smembers("workers");
-  res.json(data);
+  const workers: string[] = await connection.smembers("workers");
+  const activeworkers: any[] = [];
+
+  for (const worker of workers) {
+    const heartbeatKey = `worker:${worker}:heartbeat`;
+    const exists = await connection.get(heartbeatKey);
+    if (exists != null) {
+      activeworkers.push({
+        workerId: worker,
+        status: "connected",
+        heartbeat: exists,
+      });
+    }
+  }
+  console.log("Active workers:", activeworkers);
+  res.json(activeworkers);
 });
 
 app.use("/jobs", jobRoutes);

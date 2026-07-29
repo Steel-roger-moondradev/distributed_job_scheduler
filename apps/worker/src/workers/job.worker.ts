@@ -14,7 +14,6 @@ import { JobStatus, JobRunStatus } from "@prisma/client";
 export const jobWorker = new Worker(
   "jobs",
   async (job) => {
-    console.log(`Attempt ${job.attemptsMade + 1}`);
     const { jobId } = job.data;
     if (!jobId) {
       const err = new Error(

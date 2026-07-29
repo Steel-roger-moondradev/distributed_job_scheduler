@@ -3,20 +3,21 @@ import api from "../api/client.js";
 import LoadingSpinner from "../components/LoadingSpinner.js";
 
 type Worker = {
-  id: string;
+  workerId: string;
   status: "connected" | "disconnected";
-  lastHeartbeat: string | null;
+  heartbeat: string | null;
 };
 
 export function Workers() {
-  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [activeWorkers, setActiveWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchWorkers = async () => {
       try {
         const { data } = await api.get("/api/worker");
-        setWorkers(data);
+        console.log("Fetched workers:", data);
+        setActiveWorkers(data);
       } catch (error) {
         console.error("Error fetching workers:", error);
       } finally {
@@ -31,9 +32,6 @@ export function Workers() {
     return () => clearInterval(interval);
   }, []);
 
-  const activeWorkers = workers.filter(
-    (worker) => worker.status === "connected",
-  );
   if (loading) return <LoadingSpinner />;
 
   if (activeWorkers.length === 0) {
@@ -57,11 +55,11 @@ export function Workers() {
       <div className="space-y-4">
         {activeWorkers.map((worker) => (
           <div
-            key={worker.id}
+            key={worker.workerId}
             className="rounded-lg border border-gray-200 p-4 shadow-sm"
           >
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">{worker.id}</h3>
+              <h3 className="font-semibold text-gray-800">{worker.workerId}</h3>
 
               <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
                 Online
@@ -70,12 +68,12 @@ export function Workers() {
 
             <div className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
               <span className="text-gray-500">Worker ID</span>
-              <span className="font-medium">{worker.id}</span>
+              <span className="font-medium">{worker.workerId}</span>
 
               <span className="text-gray-500">Last Heartbeat</span>
               <span>
-                {worker.lastHeartbeat
-                  ? new Date(worker.lastHeartbeat).toLocaleString()
+                {worker.heartbeat
+                  ? new Date(Number(worker.heartbeat)).toLocaleString()
                   : "--"}
               </span>
             </div>
