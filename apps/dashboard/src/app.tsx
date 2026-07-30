@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound.js";
 import { Toaster } from "react-hot-toast";
 import CreateJob from "./pages/CreateJob.js";
 import { Workers } from "./pages/WorkerPage.js";
+import MetricsPage from "./pages/Metrics.js";
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/failed" element={<FailedJobsPage />} />
           <Route path="/workers" element={<Workers />} />
           <Route path="/jobs/failed" element={<FailedJobsPage />} />
+          <Route path="/metrics" element={<MetricsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

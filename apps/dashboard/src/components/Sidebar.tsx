@@ -86,15 +86,18 @@ export default function Sidebar() {
         <Cpu size={18} />
         Failed Jobs
       </NavLink>
-      {/* <a
-        href="http://localhost:3001/d/adf2lsw/distributed-job-scheduler?orgId=1&from=now-24h&to=now"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-2 rounded p-2 hover:bg-gray-100"
-      > */}
-      <BarChart size={18} onClick={() => {}} />
-      Metrics
-      {/* </a> */}
+
+      <NavLink
+        to="/metrics"
+        className={({ isActive }) =>
+          `flex items-center gap-2 rounded p-2 ${
+            isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-100"
+          }`
+        }
+      >
+        <BarChart size={18} />
+        Metrics
+      </NavLink>
     </nav>
   );
 }

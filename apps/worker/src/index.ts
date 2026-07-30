@@ -8,6 +8,7 @@ const app = express();
 const workerId = `worker-${process.pid}`;
 
 await connection.sadd("workers", workerId);
+
 setInterval(async () => {
   await connection.set(`worker:${workerId}:heartbeat`, Date.now(), "EX", 10);
 }, 5000);

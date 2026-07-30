@@ -6,6 +6,7 @@ import { register, queueDepth } from "observability";
 import { connection, jobQueue } from "shared";
 import cors from "cors";
 import healthRouter from "./routes/health.routes.js";
+import metricsdashboard from "./routes/metrics.routes.js";
 
 dotenv.config();
 
@@ -64,6 +65,8 @@ app.get("/jobs/dashboard", async (req, res) => {
 
   res.json(size);
 });
+
+app.use("/api", metricsdashboard);
 
 app.listen(port, () => {
   console.log(`API server is running at ${process.env.CORS_ORIGIN}`);
