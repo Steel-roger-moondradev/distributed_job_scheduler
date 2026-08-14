@@ -59,10 +59,13 @@ export async function scheduleDueJobs(): Promise<void> {
       });
 
       // Enqueue to BullMQ containing ONLY jobId
+      //this executionId is used to identify the job execution uniquely in the worker
+      //This prevents the worker from executing the same job multiple times if it is enqueued multiple times due to some error(idempotency)
+      const executionId=`${job.id}-${job.nextRunAt!.getTime()}`;
       const bullJob = await jobQueue.add("execute-job", {
         jobId: job.id,
+        executionId,
       });
-
       logger.info(
         {
           bullJobId: bullJob.id,

@@ -18,7 +18,7 @@ dotenv.config({ path: "../../.env" });
 export const jobWorker = new Worker(
   "jobs",
   async (job) => {
-    const { jobId } = job.data;
+    const { jobId,executionId } = job.data;
     if (!jobId) {
       const err = new Error(
         "Job execution failed: No jobId provided in enqueued payload",
@@ -28,7 +28,7 @@ export const jobWorker = new Worker(
       throw err;
     }
 
-    logger.info({ jobId }, "Worker executing");
+    logger.info({ jobId,executionId }, "Worker executing");
 
     //    Fetch the job details from PostgreSQL
     const dbJob = await prisma.job.findUnique({
@@ -167,7 +167,7 @@ export const jobWorker = new Worker(
           },
         }),
       ]);
-      
+
       jobsCompleted.inc();
       workerThroughput.inc();
 
