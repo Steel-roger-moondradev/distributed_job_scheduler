@@ -66,6 +66,7 @@ export const jobWorker = new Worker(
         runId,
       });
     } else {
+      
       const run = await prisma.jobRun.findUnique({
         where: {
           id: runId,

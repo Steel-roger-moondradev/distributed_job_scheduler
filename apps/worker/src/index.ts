@@ -1,5 +1,5 @@
 import "./workers/job.worker.js";
-import { connection, initializeQueueEvents } from "shared";
+import { connection } from "shared";
 import { logger, register } from "observability";
 import express from "express";
 import path from "path/win32";
@@ -25,13 +25,5 @@ app.listen(5001, () => {
   logger.info("Worker metrics on :5001");
 });
 
-async function start() {
-  await initializeQueueEvents();
 
   logger.info("Worker started");
-}
-
-start().catch((err) => {
-  logger.error({ error: String(err) }, "Failed to start worker");
-  process.exit(1);
-});
