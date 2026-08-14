@@ -75,7 +75,7 @@ export async function scheduleDueJobs(): Promise<void> {
         "BullMQ job created",
       );
 
-      logger.info({ jobId: job.id, name: job.name }, "Jobs queued");
+      logger.info({ jobId: job.id, name: job.name, executionId }, "Jobs queued");
     } catch (error) {
       logger.error(
         { jobId: job.id, name: job.name, error: String(error) },

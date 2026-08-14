@@ -29,12 +29,13 @@ model Job {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@index([nextRunAt])
 }
 
 model JobRun {
   id String @id @default(cuid())
 
-  jobId String
+  jobId String @unique
   job   Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   status JobRunStatus
