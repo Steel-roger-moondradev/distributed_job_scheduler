@@ -77,6 +77,15 @@ export const jobWorker = new Worker(
         throw new Error(`JobRun ${runId} not found`);
       }
 
+      //Preventing duplicate runs by checking if the run is already marked as SUCCESS
+      if (run.status === JobRunStatus.SUCCESS) {
+        logger.warn(
+          { jobId, runId },
+          "JobRun already marked as SUCCESS. Skipping execution.",
+        );
+        return;
+      }
+
       startedAt = run.startedAt;
       await prisma.jobRun.update({
         where: {
@@ -158,6 +167,7 @@ export const jobWorker = new Worker(
           },
         }),
       ]);
+      
       jobsCompleted.inc();
       workerThroughput.inc();
 
