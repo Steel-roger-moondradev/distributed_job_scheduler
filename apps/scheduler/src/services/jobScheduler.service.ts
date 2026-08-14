@@ -11,8 +11,15 @@ export async function scheduleDueJobs(): Promise<void> {
     "Current time",
   );
 
-  const allJobs = await prisma.job.findMany();
-
+  let allJobs;
+  try {
+  allJobs = await prisma.job.findMany();
+  }
+  catch (error) {
+    logger.error(error, "Error fetching all jobs from database");
+    return;
+  }
+  if(allJobs.length!=0) {
   logger.info(
     {
       totalJobs: allJobs.length,
@@ -21,20 +28,15 @@ export async function scheduleDueJobs(): Promise<void> {
   );
 
   logger.info(allJobs);
+}
 
   // Find all active and due jobs
-  const dueJobs = await prisma.job.findMany({
-    where: {
-      status: "ACTIVE",
-      active: true,
-      nextRunAt: {
-        lte: now,
-      },
-    },
-    orderBy: {
-      nextRunAt: "asc",
-    },
-  });
+  const dueJobs = [];
+  for(const job of allJobs) {
+    if(job.active && job.nextRunAt && job.nextRunAt <= now) {
+      dueJobs.push(job);
+    }
+  }
   logger.info(
     {
       dueJobs: dueJobs.length,

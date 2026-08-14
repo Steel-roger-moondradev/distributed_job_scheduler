@@ -39,7 +39,6 @@ export async function getJob(req: Request, res: Response) {
 }
 
 export async function deleteJob(req: Request, res: Response) {
-  console.log(`Deleting job with id: ${req.params.id}`);
   await JobService.deleteJob(req.params.id as string);
   await logAudit("JOB_DELETED", req.params.id as string);
 

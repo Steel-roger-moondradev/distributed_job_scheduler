@@ -79,6 +79,7 @@ export default function JobsPage() {
 
   return (
     <div>
+      
       <SearchBar
         searchTerm={search}
         onSearchChange={setSearch}

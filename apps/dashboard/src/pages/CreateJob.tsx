@@ -179,6 +179,7 @@ export default function CreateJob() {
             <textarea
               rows={10}
               name="payload"
+              required
               value={form.payload}
               onChange={handleChange}
               spellCheck={false}

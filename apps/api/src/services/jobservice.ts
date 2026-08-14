@@ -83,7 +83,6 @@ export async function getJob(id: string) {
 }
 
 export async function deleteJob(id: string) {
-  console.log(`Deleting job with id: ${id}`);
   return prisma.job.delete({
     where: {
       id,

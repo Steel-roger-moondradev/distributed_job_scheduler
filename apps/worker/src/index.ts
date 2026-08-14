@@ -2,7 +2,10 @@ import "./workers/job.worker.js";
 import { connection, initializeQueueEvents } from "shared";
 import { logger, register } from "observability";
 import express from "express";
+import path from "path/win32";
+import dotenv from "dotenv";
 
+dotenv.config({ path: "../../.env" });
 const app = express();
 
 const workerId = `worker-${process.pid}`;
@@ -32,6 +35,3 @@ start().catch((err) => {
   logger.error({ error: String(err) }, "Failed to start worker");
   process.exit(1);
 });
-console.log("REDIS_URL =", process.env.REDIS_URL);
-console.log("Redis status =", connection.status);
-console.log("Redis options =", connection.options);

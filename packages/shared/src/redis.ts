@@ -1,6 +1,9 @@
 import { Redis } from "ioredis";
+import dotenv from "dotenv";
+import path from "path/win32";
 
-console.log("REDIS_URL =", process.env.REDIS_URL);
+dotenv.config({ path: "../../.env" });
+
 
 export const connection = new Redis(
   process.env.REDIS_URL || "redis://localhost:6379",

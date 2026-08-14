@@ -7,8 +7,9 @@ import { connection, jobQueue } from "shared";
 import cors from "cors";
 import healthRouter from "./routes/health.routes.js";
 import metricsdashboard from "./routes/metrics.routes.js";
+import path from "path/win32";
 
-dotenv.config();
+dotenv.config({ path: "../../.env" });
 
 const app = express();
 

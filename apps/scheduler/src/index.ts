@@ -3,6 +3,10 @@ import { connection } from "shared";
 import { logger, register } from "observability";
 import { startScheduler } from "./scheduler.js";
 import { startWorkerCleanup } from "./cleanup.js";
+import path from "path/win32";
+import dotenv from "dotenv";
+
+dotenv.config({ path: "../../.env" });
 
 const app = express();
 
@@ -32,7 +36,7 @@ async function main() {
     logger.info("Scheduler metrics server listening on port 5002");
   });
 
-  startWorkerCleanup();
+   startWorkerCleanup();
 
   await startScheduler();
 

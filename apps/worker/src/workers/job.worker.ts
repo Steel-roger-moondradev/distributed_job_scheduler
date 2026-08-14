@@ -9,7 +9,11 @@ import {
   workerThroughput,
 } from "observability";
 import { CronExpressionParser } from "cron-parser";
-import { JobStatus, JobRunStatus } from "@prisma/client";
+import { JobStatus, JobRunStatus, Prisma } from "@prisma/client";
+import dotenv from "dotenv";
+import path from "path/win32";
+
+dotenv.config({ path: "../../.env" });
 
 export const jobWorker = new Worker(
   "jobs",
@@ -102,13 +106,13 @@ export const jobWorker = new Worker(
 
     try {
       //   Simulate execution (3000ms delay)
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       const duration2 = (Date.now() - start) / 1000;
 
       jobDuration.observe(duration2);
-      await new Promise((resolve) => setTimeout(resolve, 3000));
 
       const finishedAt = new Date();
-      const duration = finishedAt.getTime() - startedAt.getTime();
+      const duration = finishedAt.getTime() - start;
 
       let nextStatus: JobStatus = JobStatus.COMPLETED;
       let nextRunAt: Date | null = null;
@@ -165,7 +169,7 @@ export const jobWorker = new Worker(
       const failedAttempts = job.attemptsMade + 1;
       const isLastAttempt = failedAttempts >= maxAttempts;
       const finishedAt = new Date();
-      const duration = finishedAt.getTime() - startedAt.getTime();
+      const duration = finishedAt.getTime() - start;
 
       logger.error({ jobId, error: String(error) }, "Execution failure");
 
@@ -194,28 +198,44 @@ export const jobWorker = new Worker(
         }
       }
 
-      await prisma.jobRun.update({
-        where: {
-          id: runId,
-        },
-        data: {
-          status: JobRunStatus.FAILED,
-          attempts: failedAttempts,
-          finishedAt,
-          error: String(error),
-          duration,
-        },
-      });
+await prisma.$transaction(async (tx) => {
+  await tx.jobRun.update({
+    where: {
+      id: runId,
+    },
+    data: {
+      status: JobRunStatus.FAILED,
+      attempts: failedAttempts,
+      finishedAt,
+      error: String(error),
+      duration,
+    },
+  });
 
-      if (isLastAttempt) {
-        await prisma.job.update({
-          where: { id: jobId },
-          data: {
-            status: nextStatus,
-            nextRunAt,
-          },
-        });
-      }
+  if (isLastAttempt) {
+    await tx.job.update({
+      where: {
+        id: jobId,
+      },
+      data: {
+        status: nextStatus,
+        nextRunAt,
+      },
+    });
+
+    await tx.failedJob.create({
+      data: {
+        jobId,
+        attempts: failedAttempts,
+        reason: String(error),
+        payload: dbJob.payload as Prisma.InputJsonValue,
+
+      },
+    });
+
+  }
+});
+
 
       if (failedAttempts < maxAttempts) {
         logger.warn(
