@@ -14,7 +14,8 @@ model Job {
   name           String
   description    String?
   payload        Json
-  type           String
+  type           jobruncategory
+  jobtype        String
   cronExpression String?
   active         Boolean  @default(true)
   priority       Int      @default(0)
@@ -87,4 +88,9 @@ enum JobStatus {
   COMPLETED
   FAILED
   PAUSED
+}
+enum jobruncategory{
+  CRON
+  ONCE
+  DELAYED
 }

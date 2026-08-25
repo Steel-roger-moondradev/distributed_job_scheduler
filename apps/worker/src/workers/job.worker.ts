@@ -12,13 +12,14 @@ import { CronExpressionParser } from "cron-parser";
 import { JobStatus, JobRunStatus, Prisma } from "@prisma/client";
 import dotenv from "dotenv";
 import path from "path/win32";
+import { httphandler } from "../handler/httphandler.js";
 
 dotenv.config({ path: "../../.env" });
 
 export const jobWorker = new Worker(
   "jobs",
   async (job) => {
-    const { jobId,executionId } = job.data;
+    const { jobId, executionId } = job.data;
     if (!jobId) {
       const err = new Error(
         "Job execution failed: No jobId provided in enqueued payload",
@@ -28,7 +29,7 @@ export const jobWorker = new Worker(
       throw err;
     }
 
-    logger.info({ jobId,executionId }, "Worker executing");
+    logger.info({ jobId, executionId }, "Worker executing");
 
     //    Fetch the job details from PostgreSQL
     const dbJob = await prisma.job.findUnique({
@@ -66,7 +67,6 @@ export const jobWorker = new Worker(
         runId,
       });
     } else {
-      
       const run = await prisma.jobRun.findUnique({
         where: {
           id: runId,
@@ -115,8 +115,14 @@ export const jobWorker = new Worker(
     const start = Date.now();
 
     try {
-      //   Simulate execution (3000ms delay)
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      switch (dbJob.jobtype) {
+        case "HTTP_REQUEST":
+          const result = await httphandler(dbJob.payload as any);
+          break;
+        default:
+          throw new Error(`Unsupported job type: ${dbJob.jobtype}`);
+      }
+
       const duration2 = (Date.now() - start) / 1000;
 
       jobDuration.observe(duration2);
@@ -209,44 +215,41 @@ export const jobWorker = new Worker(
         }
       }
 
-await prisma.$transaction(async (tx) => {
-  await tx.jobRun.update({
-    where: {
-      id: runId,
-    },
-    data: {
-      status: JobRunStatus.FAILED,
-      attempts: failedAttempts,
-      finishedAt,
-      error: String(error),
-      duration,
-    },
-  });
+      await prisma.$transaction(async (tx) => {
+        await tx.jobRun.update({
+          where: {
+            id: runId,
+          },
+          data: {
+            status: JobRunStatus.FAILED,
+            attempts: failedAttempts,
+            finishedAt,
+            error: String(error),
+            duration,
+          },
+        });
 
-  if (isLastAttempt) {
-    await tx.job.update({
-      where: {
-        id: jobId,
-      },
-      data: {
-        status: nextStatus,
-        nextRunAt,
-      },
-    });
+        if (isLastAttempt) {
+          await tx.job.update({
+            where: {
+              id: jobId,
+            },
+            data: {
+              status: nextStatus,
+              nextRunAt,
+            },
+          });
 
-    await tx.failedJob.create({
-      data: {
-        jobId,
-        attempts: failedAttempts,
-        reason: String(error),
-        payload: dbJob.payload as Prisma.InputJsonValue,
-
-      },
-    });
-
-  }
-});
-
+          await tx.failedJob.create({
+            data: {
+              jobId,
+              attempts: failedAttempts,
+              reason: String(error),
+              payload: dbJob.payload as Prisma.InputJsonValue,
+            },
+          });
+        }
+      });
 
       if (failedAttempts < maxAttempts) {
         logger.warn(

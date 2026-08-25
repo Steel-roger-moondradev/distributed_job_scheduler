@@ -7,6 +7,7 @@ const initialForm = {
   name: "",
   description: "",
   type: "ONCE" as JobType,
+  jobtype: "HTTP" as const,
   payload: "{\n\n}",
   cronExpression: "",
   nextRunAt: "",
@@ -116,7 +117,7 @@ export default function CreateJob() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium">Job Type</label>
+              <label className="mb-2 block text-sm font-medium">Type</label>
 
               <select
                 name="type"
@@ -170,6 +171,18 @@ export default function CreateJob() {
               )}
             </section>
           )}
+          <div>
+            <label className="mb-2 block text-sm font-medium">JobType</label>
+
+            <select
+              name="jobtype"
+              value={form.jobtype}
+              onChange={handleChange}
+              className="w-full rounded-lg border px-4 py-3"
+            >
+              <option value="HTTP_REQUEST">HTTP Request</option>
+            </select>
+          </div>
 
           {/* Payload */}
 
