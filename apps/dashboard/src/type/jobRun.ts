@@ -1,6 +1,6 @@
 import { Job } from "./type.js";
 
-export type JobRunStatus = "SUCCESS" | "FAILED" | "RUNNING";
+export type JobRunStatus = "SUCCESS" | "FAILED" | "RUNNING" | "PENDING";
 
 export interface JobRun {
   id: string;

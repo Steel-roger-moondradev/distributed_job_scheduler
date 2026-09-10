@@ -1,28 +1,14 @@
-import React from "react";
-
 export default function LoadingSpinner() {
   return (
-    <div className="flex items-center justify-center py-8">
-      <svg
-        className="animate-spin h-8 w-8 text-indigo-600"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-        />
-        <path
-          className="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8v8z"
-        />
-      </svg>
+    <div
+      className="flex items-center justify-center py-10"
+      role="status"
+      aria-label="Loading"
+    >
+      <div className="relative h-6 w-6">
+        <div className="absolute inset-0 rounded-full border-2 border-indigo-100" />
+        <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-indigo-500" />
+      </div>
     </div>
   );
 }

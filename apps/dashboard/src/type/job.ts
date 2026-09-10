@@ -6,7 +6,8 @@ export type JobStatus =
   | "RUNNING"
   | "COMPLETED"
   | "FAILED"
-  | "PAUSED";
+  | "PAUSED"
+  | "PENDING";
 export interface Job {
   id: string;
   name: string;
