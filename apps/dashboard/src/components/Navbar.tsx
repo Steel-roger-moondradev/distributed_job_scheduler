@@ -6,13 +6,14 @@ import { useEffect, useState } from "react";
 export default function Navbar() {
   const navigate = useNavigate();
   const isFetching = useIsFetching();
-
   const queryClient = useQueryClient();
+
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const refresh = () => {
-    // Invalidate **all** queries so every page reloads its data
-    queryClient.invalidateQueries({ refetchType: "all" });
+    queryClient.invalidateQueries({
+      refetchType: "all",
+    });
   };
 
   useEffect(() => {
@@ -22,32 +23,49 @@ export default function Navbar() {
   }, [isFetching]);
 
   return (
-    <header className="flex items-center justify-between bg-white px-4 py-2 shadow">
-      <h1
-        className="cursor-pointer text-xl font-semibold"
+    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5 sm:px-6">
+      {/* Brand */}
+      <button
         onClick={() => navigate("/")}
+        className="text-left text-lg font-semibold tracking-tight text-slate-900 transition-colors hover:text-slate-700"
       >
         Distributed Job Scheduler
-      </h1>
+      </button>
 
-      <div className="flex items-center gap-4">
-        <button
-          onClick={refresh}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-all hover:bg-gray-50 active:scale-95"
-        >
-          <RotateCcw size={20} />
-        </button>
+      {/* Actions */}
+      <div className="flex items-center gap-3">
+        {/* Last updated */}
+        <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:flex">
+          <span
+            className={`h-2 w-2 rounded-full ${
+              isFetching > 0 ? "animate-pulse bg-amber-400" : "bg-emerald-500"
+            }`}
+          />
 
-        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+          <div className="flex flex-col leading-none">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+              Last updated
+            </span>
 
-          <div className="flex flex-col leading-tight">
-            <span className="text-xs text-slate-500">Last Updated</span>
-            <span className="font-medium">
+            <span className="mt-1 text-xs font-medium text-slate-700">
               {lastUpdated?.toLocaleTimeString() ?? "Never"}
             </span>
           </div>
         </div>
+
+        {/* Refresh */}
+        <button
+          onClick={refresh}
+          disabled={isFetching > 0}
+          aria-label="Refresh data"
+          title="Refresh data"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <RotateCcw
+            size={17}
+            className={isFetching > 0 ? "animate-spin" : ""}
+          />
+        </button>
       </div>
     </header>
   );

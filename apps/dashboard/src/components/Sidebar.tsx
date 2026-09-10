@@ -4,100 +4,103 @@ import {
   LayoutDashboard,
   ListChecks,
   Cpu,
-  BarChart,
+  BarChart3,
   ChevronDown,
   ChevronRight,
   Plus,
+  XCircle,
 } from "lucide-react";
 
 export default function Sidebar() {
-  const [jobsOpen, setJobsOpen] = useState(false);
+  const [jobsOpen, setJobsOpen] = useState(true);
+
+  const navItem = ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+      isActive
+        ? "bg-slate-100 font-medium text-slate-900"
+        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+    }`;
+
+  const subNavItem = ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+      isActive
+        ? "bg-slate-100 font-medium text-slate-900"
+        : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+    }`;
 
   return (
-    <nav className="flex h-full flex-col p-4 space-y-1">
-      <NavLink
-        to="/"
-        className={({ isActive }) =>
-          `flex items-center gap-2 rounded p-2 transition ${
-            isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-100"
-          }`
-        }
-      >
-        <LayoutDashboard size={18} />
-        Dashboard
-      </NavLink>
-      {/* Jobs */}
-      <button
-        onClick={() => setJobsOpen(!jobsOpen)}
-        className="flex w-full items-center justify-between rounded p-2 hover:bg-gray-100"
-      >
-        <div className="flex items-center gap-2">
-          <ListChecks size={18} />
-          Jobs
+    <nav className="flex h-full flex-col px-3 py-5">
+      {/* Navigation label */}
+      <div className="mb-3 px-3">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+          Navigation
+        </span>
+      </div>
+
+      <div className="space-y-1">
+        {/* Dashboard */}
+        <NavLink to="/" className={navItem}>
+          <LayoutDashboard size={18} strokeWidth={1.8} />
+          <span>Dashboard</span>
+        </NavLink>
+
+        {/* Jobs */}
+        <button
+          onClick={() => setJobsOpen((prev) => !prev)}
+          className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+        >
+          <div className="flex items-center gap-3">
+            <ListChecks size={18} strokeWidth={1.8} />
+            <span>Jobs</span>
+          </div>
+
+          {jobsOpen ? (
+            <ChevronDown size={16} className="text-slate-400" />
+          ) : (
+            <ChevronRight size={16} className="text-slate-400" />
+          )}
+        </button>
+
+        {/* Job submenu */}
+        {jobsOpen && (
+          <div className="ml-5 border-l border-slate-200 pl-2">
+            <NavLink to="/jobs" className={subNavItem}>
+              All Jobs
+            </NavLink>
+
+            <NavLink to="/jobs/create" className={subNavItem}>
+              <Plus size={14} strokeWidth={2} />
+              <span>Create Job</span>
+            </NavLink>
+          </div>
+        )}
+
+        {/* Workers */}
+        <NavLink to="/workers" className={navItem}>
+          <Cpu size={18} strokeWidth={1.8} />
+          <span>Workers</span>
+        </NavLink>
+
+        {/* Failed Jobs */}
+        <NavLink to="/failed" className={navItem}>
+          <XCircle size={18} strokeWidth={1.8} />
+          <span>Failed Jobs</span>
+        </NavLink>
+
+        {/* Metrics */}
+        <NavLink to="/metrics" className={navItem}>
+          <BarChart3 size={18} strokeWidth={1.8} />
+          <span>Metrics</span>
+        </NavLink>
+      </div>
+
+      {/* Bottom status */}
+      <div className="mt-auto border-t border-slate-100 pt-4">
+        <div className="flex items-center gap-2 px-3 text-xs text-slate-400">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          System operational
         </div>
-
-        {jobsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-      </button>
-      {jobsOpen && (
-        <div className="ml-7 flex flex-col space-y-1">
-          <NavLink
-            to="/jobs"
-            className={({ isActive }) =>
-              `rounded p-2 text-sm ${
-                isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-100"
-              }`
-            }
-          >
-            All Jobs
-          </NavLink>
-
-          <NavLink
-            to="/jobs/create"
-            className={({ isActive }) =>
-              `flex items-center gap-2 rounded p-2 text-sm ${
-                isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-100"
-              }`
-            }
-          >
-            <Plus size={14} />
-            Create Job
-          </NavLink>
-        </div>
-      )}
-      <NavLink
-        to="/workers"
-        className={({ isActive }) =>
-          `flex items-center gap-2 rounded p-2 ${
-            isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-100"
-          }`
-        }
-      >
-        <Cpu size={18} />
-        Workers
-      </NavLink>
-      <NavLink
-        to="/failed"
-        className={({ isActive }) =>
-          `flex items-center gap-2 rounded p-2 ${
-            isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-100"
-          }`
-        }
-      >
-        <Cpu size={18} />
-        Failed Jobs
-      </NavLink>
-
-      <NavLink
-        to="/metrics"
-        className={({ isActive }) =>
-          `flex items-center gap-2 rounded p-2 ${
-            isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-100"
-          }`
-        }
-      >
-        <BarChart size={18} />
-        Metrics
-      </NavLink>
+      </div>
     </nav>
   );
 }
