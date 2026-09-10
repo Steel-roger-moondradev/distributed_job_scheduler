@@ -24,7 +24,7 @@ export const jobWorker = new Worker(
   "jobs",
   async (job) => {
     const { jobId, executionId, runId: existingRunId } = job.data;
-
+    console.log(`🚀 EXECUTING JOB: ${job.id} | priority: ${job.opts.priority}`);
     if (!jobId) {
       const err = new Error(
         "Job execution failed: No jobId provided in enqueued payload",

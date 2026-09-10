@@ -17,8 +17,7 @@ export const createJobSchema = z.object({
 
   priority: z.number().int().nonnegative().optional(),
 
-  nextRunAt: z.string().datetime().optional(),
-
+  delaySeconds: z.number().nonnegative().optional(),
   maxRetries: z.number().int().nonnegative().optional(),
 
   timeoutMs: z.number().int().positive().optional(),

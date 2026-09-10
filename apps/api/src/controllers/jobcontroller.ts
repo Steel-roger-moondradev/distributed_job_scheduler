@@ -13,6 +13,7 @@ export async function createJob(req: Request, res: Response) {
       message: "Job not found",
     });
   }
+  console.log("Job created:", job);
   jobsCreated.inc();
 
   await logAudit("JOB_CREATED", job.id);

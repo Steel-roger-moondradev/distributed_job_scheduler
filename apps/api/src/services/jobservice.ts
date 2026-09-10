@@ -9,6 +9,7 @@ interface CreateJobInput {
   jobtype: "HTTP_REQUEST" | "EMAIL";
   cronExpression?: string;
   delaySeconds?: number;
+  priority?: number; // ADD
 }
 
 export function getNextCronRun(expression: string): Date {
@@ -17,6 +18,7 @@ export function getNextCronRun(expression: string): Date {
 }
 
 export async function createJob(data: CreateJobInput) {
+  console.log("Creating job with data:", data);
   const {
     name,
     description,
@@ -24,7 +26,8 @@ export async function createJob(data: CreateJobInput) {
     type,
     jobtype,
     cronExpression,
-    delaySeconds = 0,
+    delaySeconds,
+    priority,
   } = data;
 
   let nextRunAt: Date | null = null;
@@ -35,6 +38,10 @@ export async function createJob(data: CreateJobInput) {
       break;
 
     case "DELAYED":
+      if (typeof delaySeconds !== "number" || !Number.isFinite(delaySeconds)) {
+        throw new Error("delaySeconds must be a valid number for DELAYED jobs");
+      }
+
       nextRunAt = new Date(Date.now() + delaySeconds * 1000);
       break;
 
@@ -61,6 +68,7 @@ export async function createJob(data: CreateJobInput) {
       nextRunAt,
       status: "ACTIVE",
       active: true,
+      priority: priority ?? 0,
     },
   });
 

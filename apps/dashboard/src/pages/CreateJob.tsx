@@ -26,7 +26,7 @@ const initialForm = {
   subject: "",
   html: "",
   cronExpression: "",
-  nextRunAt: "",
+  delaySeconds: "",
   priority: 0,
   maxRetries: 3,
   timeoutMs: 30000,
@@ -134,8 +134,15 @@ export default function CreateJob() {
         payload,
         cronExpression:
           form.type === "CRON" ? form.cronExpression.trim() : undefined,
-        nextRunAt:
-          form.type === "DELAYED" ? form.nextRunAt || undefined : undefined,
+        delaySeconds:
+          form.type === "DELAYED" && form.delaySeconds
+            ? Math.max(
+                0,
+                Math.floor(
+                  (new Date(form.delaySeconds).getTime() - Date.now()) / 1000,
+                ),
+              )
+            : undefined,
         priority: form.priority,
         maxRetries: form.maxRetries,
         timeoutMs: form.timeoutMs,
@@ -310,11 +317,10 @@ export default function CreateJob() {
 
                   <input
                     type="datetime-local"
-                    name="nextRunAt"
+                    name="delaySeconds"
                     required
-                    value={form.nextRunAt}
+                    value={form.delaySeconds}
                     onChange={handleChange}
-                    className={inputClass}
                   />
                 </div>
               )}

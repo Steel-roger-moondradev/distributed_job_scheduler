@@ -44,16 +44,23 @@ export async function scheduleDueJobs(): Promise<void> {
 
       const executionId = `${job.id}-${job.nextRunAt!.getTime()}`;
 
-      const bullJob = await jobQueue.add("execute-job", {
-        jobId: job.id,
-        executionId,
-      });
+      const bullJob = await jobQueue.add(
+        "execute-job",
+        {
+          jobId: job.id,
+          executionId,
+        },
+        {
+          priority: job.priority,
+        },
+      );
 
       logger.info(
         {
           bullJobId: bullJob.id,
           queueName: bullJob.queueName,
           data: bullJob.data,
+          priority: job.priority,
         },
         "BullMQ job created",
       );
