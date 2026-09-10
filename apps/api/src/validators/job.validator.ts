@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-console.log("create route hit");
 export const createJobSchema = z.object({
   name: z.string().min(1, "Name is required"),
 
@@ -8,7 +7,9 @@ export const createJobSchema = z.object({
 
   payload: z.unknown(),
 
-  type: z.string().min(1, "Type is required"),
+  type: z.enum(["ONCE", "DELAYED", "CRON"]),
+
+  jobtype: z.enum(["HTTP_REQUEST", "EMAIL"]),
 
   cronExpression: z.string().optional(),
 

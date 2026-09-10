@@ -36,7 +36,7 @@ model Job {
 model JobRun {
   id String @id @default(cuid())
 
-  jobId String @unique
+  jobId String
   job   Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   status JobRunStatus
@@ -44,11 +44,13 @@ model JobRun {
   startedAt  DateTime @default(now())
   finishedAt DateTime?
   error      String?
+  result     Json?
   duration   Int?
   workerId   String?
-  attempts   Int      @default(1)
+  attempts   Int @default(1)
 
   createdAt DateTime @default(now())
+
 }
 
 model FailedJob {

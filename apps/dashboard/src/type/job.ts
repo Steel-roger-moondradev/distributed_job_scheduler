@@ -1,25 +1,23 @@
 import { FailedJob } from "./failedJob.js";
 import { JobRun } from "./jobRun.js";
-
 export type JobStatus =
   | "ACTIVE"
   | "QUEUED"
   | "RUNNING"
-  | "SUCCESS"
+  | "COMPLETED"
   | "FAILED"
   | "PAUSED";
-
 export interface Job {
   id: string;
   name: string;
-  description: string;
-  cronExpression: string;
+  description?: string | null;
+  cronExpression?: string | null;
   type: string;
   priority: number;
   active: boolean;
   status: JobStatus;
-  nextRunAt: string; // ISO timestamp
-  timeoutMs: number; // seconds
+  nextRunAt?: string | null;
+  timeoutMs: number;
   maxRetries: number;
   payload: unknown;
   createdAt: string;

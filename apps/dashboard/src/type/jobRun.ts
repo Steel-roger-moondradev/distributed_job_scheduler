@@ -13,9 +13,9 @@ export interface JobRun {
   workerId: string;
   attempts: number;
   status: JobRunStatus;
+  result?: unknown;
   createdAt: string;
 }
-
 export interface RecentExecution {
   id: string;
   status: "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";

@@ -22,6 +22,7 @@
     "database": "*",
     "express": "^5.2.1",
     "observability": "*",
+    "resend": "^6.27.0",
     "shared": "*"
   }
 }

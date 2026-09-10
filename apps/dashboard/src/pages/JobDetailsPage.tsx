@@ -1,7 +1,16 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Pause, Play, Trash2, RefreshCw, Copy } from "lucide-react";
+import {
+  ArrowLeft,
+  Pause,
+  Play,
+  Trash2,
+  RefreshCw,
+  Copy,
+  Eye,
+  X,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 
 import { useJob } from "../hooks/useJob.js";
@@ -33,6 +42,7 @@ export default function JobDetailsPage() {
       </div>
     );
   }
+
   const { id } = useParams<{ id: string }>();
 
   const navigate = useNavigate();
@@ -40,6 +50,10 @@ export default function JobDetailsPage() {
   const queryClient = useQueryClient();
 
   const [showDelete, setShowDelete] = React.useState(false);
+
+  const [selectedResult, setSelectedResult] = React.useState<unknown>(null);
+
+  const [showResult, setShowResult] = React.useState(false);
 
   const {
     data: job,
@@ -71,6 +85,24 @@ export default function JobDetailsPage() {
     await navigator.clipboard.writeText(JSON.stringify(job?.payload, null, 2));
 
     toast.success("Payload copied");
+  };
+
+  const copyResult = async () => {
+    await navigator.clipboard.writeText(
+      JSON.stringify(selectedResult, null, 2),
+    );
+
+    toast.success("Result copied");
+  };
+
+  const openResult = (result: unknown) => {
+    setSelectedResult(result);
+    setShowResult(true);
+  };
+
+  const closeResult = () => {
+    setShowResult(false);
+    setSelectedResult(null);
   };
 
   const handlePause = async () => {
@@ -157,301 +189,377 @@ export default function JobDetailsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <ConfirmDeleteModal
-        isOpen={showDelete}
-        onClose={() => setShowDelete(false)}
-        onConfirm={handleDelete}
-        jobName={job.name}
-      />
+    <>
+      <div className="space-y-6">
+        <ConfirmDeleteModal
+          isOpen={showDelete}
+          onClose={() => setShowDelete(false)}
+          onConfirm={handleDelete}
+          jobName={job.name}
+        />
 
-      {/* Header */}
+        {/* Header */}
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <button
-              onClick={() => navigate(-1)}
-              className="mb-5 flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              <ArrowLeft size={16} />
-              Back to Jobs
-            </button>
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <button
+                onClick={() => navigate(-1)}
+                className="mb-5 flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                <ArrowLeft size={16} />
+                Back to Jobs
+              </button>
 
-            <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-bold text-gray-900">{job.name}</h1>
+              <div className="flex items-center gap-4">
+                <h1 className="text-3xl font-bold text-gray-900">{job.name}</h1>
 
-              <StatusBadge status={job.status} />
+                <StatusBadge status={job.status} />
+              </div>
+
+              <p className="mt-3 max-w-3xl text-gray-600">
+                {job.description || "No description provided."}
+              </p>
             </div>
 
-            <p className="mt-3 max-w-3xl text-gray-600">
-              {job.description || "No description provided."}
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={refreshAll}
+                className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-100"
+              >
+                <RefreshCw size={18} />
+                Refresh
+              </button>
+
+              <button
+                onClick={copyPayload}
+                className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-100"
+              >
+                <Copy size={18} />
+                Copy Payload
+              </button>
+
+              {job.status === "ACTIVE" && (
+                <button
+                  onClick={handlePause}
+                  className="flex items-center gap-2 rounded-lg bg-yellow-500 px-5 py-2 text-white hover:bg-yellow-600"
+                >
+                  <Pause size={18} />
+                  Pause
+                </button>
+              )}
+
+              {job.status === "PAUSED" && (
+                <button
+                  onClick={handleResume}
+                  className="flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2 text-white hover:bg-green-700"
+                >
+                  <Play size={18} />
+                  Resume
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setShowDelete(true);
+                }}
+                className="flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2 text-white hover:bg-red-700"
+              >
+                <Trash2 size={18} />
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Overview */}
+
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Overview</h2>
+
+            <p className="text-sm text-gray-500">
+              General information about this job.
             </p>
           </div>
+        </section>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={refreshAll}
-              className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-100"
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          <InfoCard title="Status">
+            <StatusBadge status={job.status} />
+          </InfoCard>
+
+          <InfoCard title="Type">
+            <p className="text-2xl font-semibold">{job.type}</p>
+          </InfoCard>
+
+          <InfoCard title="Priority">
+            <p className="text-2xl font-semibold">{job.priority}</p>
+          </InfoCard>
+
+          <InfoCard title="Active">
+            <p
+              className={`text-2xl font-semibold ${
+                job.active ? "text-green-600" : "text-red-600"
+              }`}
             >
-              <RefreshCw size={18} />
-              Refresh
-            </button>
+              {job.active ? "Yes" : "No"}
+            </p>
+          </InfoCard>
+
+          <InfoCard title="Next Run">
+            <p className="text-base font-medium">
+              {job.nextRunAt ? formatDate(job.nextRunAt) : "—"}
+            </p>
+          </InfoCard>
+
+          <InfoCard title="Timeout">
+            <p className="mt-3 text-2xl font-semibold">
+              {job.timeoutMs / 1000}s
+            </p>
+          </InfoCard>
+
+          <InfoCard title="Max Retries">
+            <p className="mt-3 text-2xl font-semibold">{job.maxRetries}</p>
+          </InfoCard>
+
+          <InfoCard title="Created">
+            <p className="mt-3 text-base font-medium">
+              {formatDate(job.createdAt)}
+            </p>
+          </InfoCard>
+        </div>
+
+        {/* Metadata */}
+
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-6 text-xl font-semibold">Metadata</h2>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <p className="text-sm text-gray-500">Updated At</p>
+
+              <p className="mt-1 font-medium">{formatDate(job.updatedAt)}</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">Cron Expression</p>
+
+              <p className="mt-1 break-all font-medium">
+                {job.cronExpression || "—"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">Description</p>
+
+              <p className="mt-1">{job.description || "No description"}</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">Job ID</p>
+
+              <p className="mt-1 break-all font-mono text-sm">{job.id}</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Payload */}
+
+        <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <div>
+              <h2 className="text-xl font-semibold">Payload</h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                JSON payload that will be sent to the worker.
+              </p>
+            </div>
 
             <button
               onClick={copyPayload}
-              className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-100"
+              className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100"
             >
-              <Copy size={18} />
-              Copy Payload
-            </button>
-
-            {job.status === "ACTIVE" && (
-              <button
-                onClick={handlePause}
-                className="flex items-center gap-2 rounded-lg bg-yellow-500 px-5 py-2 text-white hover:bg-yellow-600"
-              >
-                <Pause size={18} />
-                Pause
-              </button>
-            )}
-
-            {job.status === "PAUSED" && (
-              <button
-                onClick={handleResume}
-                className="flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2 text-white hover:bg-green-700"
-              >
-                <Play size={18} />
-                Resume
-              </button>
-            )}
-
-            <button
-              onClick={() => {
-                setShowDelete(true);
-              }}
-              className="flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2 text-white hover:bg-red-700"
-            >
-              <Trash2 size={18} />
-              Delete
+              <Copy size={16} />
+              Copy
             </button>
           </div>
-        </div>
-      </div>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Overview</h2>
-
-          <p className="text-sm text-gray-500">
-            General information about this job.
-          </p>
-        </div>
-      </section>
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {/* Status */}
-
-        <InfoCard title="Status">
-          <StatusBadge status={job.status} />
-        </InfoCard>
-
-        <InfoCard title="Type">
-          <p className="text-2xl font-semibold">{job.type}</p>
-        </InfoCard>
-
-        <InfoCard title="Priority">
-          <p className="text-2xl font-semibold">{job.priority}</p>
-        </InfoCard>
-
-        <InfoCard title="Active">
-          <p
-            className={`text-2xl font-semibold ${
-              job.active ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            {job.active ? "Yes" : "No"}
-          </p>
-        </InfoCard>
-
-        <InfoCard title="Next Run">
-          <p className="text-base font-medium">
-            {job.nextRunAt ? formatDate(job.nextRunAt) : "—"}
-          </p>
-        </InfoCard>
-
-        <InfoCard title="Timeout">
-          <p className="mt-3 text-2xl font-semibold">{job.timeoutMs / 1000}s</p>
-        </InfoCard>
-
-        <InfoCard title="Max Retries">
-          <p className="mt-3 text-2xl font-semibold">{job.maxRetries}</p>
-        </InfoCard>
-
-        <InfoCard title="Created">
-          <p className="mt-3 text-base font-medium">
-            {formatDate(job.createdAt)}
-          </p>
-        </InfoCard>
-      </div>
-
-      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-6 text-xl font-semibold">Metadata</h2>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <p className="text-sm text-gray-500">Updated At</p>
-
-            <p className="mt-1 font-medium">{formatDate(job.updatedAt)}</p>
+          <div className="overflow-x-auto bg-slate-900">
+            <pre className="max-h-[500px] overflow-auto p-6 text-sm leading-7 text-green-300">
+              <code>{JSON.stringify(job.payload, null, 2)}</code>
+            </pre>
           </div>
+        </section>
 
-          <div>
-            <p className="text-sm text-gray-500">Cron Expression</p>
+        {/* Execution History */}
 
-            <p className="mt-1 font-medium break-all">
-              {job.cronExpression || "—"}
-            </p>
-          </div>
+        <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Execution History
+              </h2>
 
-          <div>
-            <p className="text-sm text-gray-500">Description</p>
-
-            <p className="mt-1">{job.description || "No description"}</p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">Job ID</p>
-
-            <p className="mt-1 break-all font-mono text-sm">{job.id}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Payload</h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              JSON payload that will be sent to the worker.
-            </p>
-          </div>
-
-          <button
-            onClick={copyPayload}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100"
-          >
-            <Copy size={16} />
-            Copy
-          </button>
-        </div>
-
-        <div className="overflow-x-auto bg-slate-900">
-          <pre className="max-h-[500px] overflow-auto p-6 text-sm leading-7 text-green-300">
-            <code>{JSON.stringify(job.payload, null, 2)}</code>
-          </pre>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              Execution History
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Recent executions of this job.
-            </p>
-          </div>
-
-          <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
-            {history?.length ?? 0} Runs
-          </span>
-        </div>
-
-        {history && history.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="border-b bg-gray-50">
-                <tr className="text-left text-sm font-semibold text-gray-700">
-                  <th className="px-6 py-4">Started</th>
-
-                  <th className="px-6 py-4">Finished</th>
-
-                  <th className="px-6 py-4">Duration</th>
-
-                  <th className="px-6 py-4">Worker</th>
-
-                  <th className="px-6 py-4">Attempts</th>
-
-                  <th className="px-6 py-4">Status</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {history.map((run) => (
-                  <tr
-                    key={run.id}
-                    className="border-b border-gray-100 transition hover:bg-gray-50"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {formatDate(run.startedAt)}
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {run.finishedAt ? formatDate(run.finishedAt) : "—"}
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {run.duration != null
-                        ? formatDuration(run.duration)
-                        : "—"}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="max-w-[170px] truncate rounded bg-gray-100 px-2 py-1 font-mono text-sm">
-                        {run.workerId ?? "—"}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 text-center">{run.attempts}</td>
-
-                    <td className="px-6 py-4">
-                      <StatusBadge status={run.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="mb-4 rounded-full bg-gray-100 p-4">
-              <svg
-                className="h-8 w-8 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M8.25 6.75h12m-12 5.25h12m-12 5.25h12M3.75 6.75h.008v.008H3.75zm0 5.25h.008v.008H3.75zm0 5.25h.008v.008H3.75z"
-                />
-              </svg>
+              <p className="mt-1 text-sm text-gray-500">
+                Recent executions of this job.
+              </p>
             </div>
 
-            <h3 className="text-lg font-semibold text-gray-800">
-              No execution history
-            </h3>
-
-            <p className="mt-2 text-sm text-gray-500">
-              This job hasn't been executed yet.
-            </p>
+            <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
+              {history?.length ?? 0} Runs
+            </span>
           </div>
-        )}
-      </section>
-    </div>
+
+          {history && history.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="border-b bg-gray-50">
+                  <tr className="text-left text-sm font-semibold text-gray-700">
+                    <th className="px-6 py-4">Started</th>
+
+                    <th className="px-6 py-4">Finished</th>
+
+                    <th className="px-6 py-4">Duration</th>
+
+                    <th className="px-6 py-4">Worker</th>
+
+                    <th className="px-6 py-4">Attempts</th>
+
+                    <th className="px-6 py-4">Status</th>
+
+                    <th className="px-6 py-4">Result</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {history.map((run) => (
+                    <tr
+                      key={run.id}
+                      className="border-b border-gray-100 transition hover:bg-gray-50"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {formatDate(run.startedAt)}
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {run.finishedAt ? formatDate(run.finishedAt) : "—"}
+                      </td>
+
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {run.duration != null
+                          ? formatDuration(run.duration)
+                          : "—"}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="max-w-[170px] truncate rounded bg-gray-100 px-2 py-1 font-mono text-sm">
+                          {run.workerId ?? "—"}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-center">{run.attempts}</td>
+
+                      <td className="px-6 py-4">
+                        <StatusBadge status={run.status} />
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {run.result != null ? (
+                          <button
+                            onClick={() => openResult(run.result)}
+                            className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                          >
+                            <Eye size={16} />
+                            View Result
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="mb-4 rounded-full bg-gray-100 p-4">
+                <svg
+                  className="h-8 w-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8.25 6.75h12m-12 5.25h12m-12 5.25h12M3.75 6.75h.008v.008H3.75zm0 5.25h.008v.008H3.75zm0 5.25h.008v.008H3.75z"
+                  />
+                </svg>
+              </div>
+
+              <h3 className="text-lg font-semibold text-gray-800">
+                No execution history
+              </h3>
+
+              <p className="mt-2 text-sm text-gray-500">
+                This job hasn't been executed yet.
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* Result Modal */}
+
+      {showResult && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeResult}
+        >
+          <div
+            className="w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Execution Result
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Response returned by the job handler.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={copyResult}
+                  className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-100"
+                >
+                  <Copy size={16} />
+                  Copy
+                </button>
+
+                <button
+                  onClick={closeResult}
+                  className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-[70vh] overflow-auto bg-slate-900 p-6">
+              <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-green-300">
+                {JSON.stringify(selectedResult, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
