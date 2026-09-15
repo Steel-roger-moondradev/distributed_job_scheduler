@@ -14,9 +14,9 @@ export interface Job {
   description?: string | null;
   cronExpression?: string | null;
   type: string;
+  jobtype: string;
   priority: number;
   active: boolean;
-  status: JobStatus;
   nextRunAt?: string | null;
   timeoutMs: number;
   maxRetries: number;

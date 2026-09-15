@@ -150,15 +150,27 @@ export default function JobDetailsPage() {
   };
 
   const copyPayload = async () => {
-    await navigator.clipboard.writeText(JSON.stringify(job?.payload, null, 2));
-    toast.success("Payload copied");
+    try {
+      await navigator.clipboard.writeText(
+        JSON.stringify(job?.payload, null, 2),
+      );
+
+      toast.success("Payload copied");
+    } catch {
+      toast.error("Failed to copy payload");
+    }
   };
 
   const copyResult = async () => {
-    await navigator.clipboard.writeText(
-      JSON.stringify(selectedResult, null, 2),
-    );
-    toast.success("Result copied");
+    try {
+      await navigator.clipboard.writeText(
+        JSON.stringify(selectedResult, null, 2),
+      );
+
+      toast.success("Result copied");
+    } catch {
+      toast.error("Failed to copy result");
+    }
   };
 
   const openResult = (result: unknown) => {
@@ -172,14 +184,21 @@ export default function JobDetailsPage() {
   };
 
   const handlePause = async () => {
+    if (!id) return;
+
     const toastId = toast.loading("Pausing job...");
 
     try {
-      await pauseJob(id!);
+      await pauseJob(id);
 
-      await queryClient.invalidateQueries({
-        queryKey: ["job", id],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["job", id],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["jobs"],
+        }),
+      ]);
 
       toast.success("Job paused", { id: toastId });
     } catch {
@@ -188,14 +207,21 @@ export default function JobDetailsPage() {
   };
 
   const handleResume = async () => {
+    if (!id) return;
+
     const toastId = toast.loading("Resuming job...");
 
     try {
-      await resumeJob(id!);
+      await resumeJob(id);
 
-      await queryClient.invalidateQueries({
-        queryKey: ["job", id],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["job", id],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["jobs"],
+        }),
+      ]);
 
       toast.success("Job resumed", { id: toastId });
     } catch {
@@ -204,10 +230,17 @@ export default function JobDetailsPage() {
   };
 
   const handleDelete = async () => {
+    if (!id) return;
+
     const toastId = toast.loading("Deleting job...");
 
     try {
-      await deleteJob(id!);
+      await deleteJob(id);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["jobs"],
+      });
+
       toast.success("Job deleted", { id: toastId });
       navigate("/jobs");
     } catch {
@@ -257,6 +290,7 @@ export default function JobDetailsPage() {
           jobName={job.name}
         />
 
+        {/* Header */}
         <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.04)]">
           <div className="bg-gradient-to-r from-indigo-50/70 via-white to-violet-50/50 p-6 sm:p-8">
             <div className="flex flex-col gap-7 xl:flex-row xl:items-start xl:justify-between">
@@ -274,7 +308,21 @@ export default function JobDetailsPage() {
                     {job.name}
                   </h1>
 
-                  <StatusBadge status={job.status} />
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                      job.active
+                        ? "bg-teal-50 text-teal-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    <span
+                      className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                        job.active ? "bg-teal-500" : "bg-slate-400"
+                      }`}
+                    />
+
+                    {job.active ? "Active" : "Paused"}
+                  </span>
                 </div>
 
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
@@ -290,6 +338,7 @@ export default function JobDetailsPage() {
                 </div>
               </div>
 
+              {/* Actions */}
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={refreshAll}
@@ -303,26 +352,24 @@ export default function JobDetailsPage() {
                 </button>
 
                 <button
-                  onClick={copyPayload}
+                  onClick={() => void copyPayload()}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
                 >
                   <Copy size={16} />
                   Copy Payload
                 </button>
 
-                {job.status === "ACTIVE" && (
+                {job.active ? (
                   <button
-                    onClick={handlePause}
+                    onClick={() => void handlePause()}
                     className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-sm font-medium text-amber-700 transition-all hover:bg-amber-100"
                   >
                     <Pause size={16} />
                     Pause
                   </button>
-                )}
-
-                {job.status === "PAUSED" && (
+                ) : (
                   <button
-                    onClick={handleResume}
+                    onClick={() => void handleResume()}
                     className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-teal-700 hover:shadow-md"
                   >
                     <Play size={16} />
@@ -342,6 +389,7 @@ export default function JobDetailsPage() {
           </div>
         </section>
 
+        {/* Overview */}
         <section className="space-y-5">
           <SectionHeader
             eyebrow="Configuration"
@@ -352,15 +400,19 @@ export default function JobDetailsPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <InfoCard
-              title="Status"
+              title="Schedule Type"
+              icon={<Zap size={13} />}
+              accent="violet"
+            >
+              {job.type}
+            </InfoCard>
+
+            <InfoCard
+              title="Job Type"
               icon={<Activity size={13} />}
               accent="indigo"
             >
-              <StatusBadge status={job.status} />
-            </InfoCard>
-
-            <InfoCard title="Type" icon={<Zap size={13} />} accent="violet">
-              {job.type}
+              {job.jobtype}
             </InfoCard>
 
             <InfoCard
@@ -372,12 +424,12 @@ export default function JobDetailsPage() {
             </InfoCard>
 
             <InfoCard
-              title="Active"
+              title="Status"
               icon={<CheckCircle2 size={13} />}
               accent="teal"
             >
               <span className={job.active ? "text-teal-600" : "text-slate-400"}>
-                {job.active ? "Yes" : "No"}
+                {job.active ? "Active" : "Paused"}
               </span>
             </InfoCard>
 
@@ -411,6 +463,7 @@ export default function JobDetailsPage() {
           </div>
         </section>
 
+        {/* Metadata */}
         <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_12px_rgba(15,23,42,0.03)] sm:p-7">
           <SectionHeader
             eyebrow="Details"
@@ -420,15 +473,24 @@ export default function JobDetailsPage() {
           />
 
           <div className="mt-6 grid gap-x-10 gap-y-6 md:grid-cols-2">
-            <MetadataItem
-              label="Updated At"
-              value={formatDate(job.updatedAt)}
-            />
+            <MetadataItem label="Job Type" value={job.jobtype} />
+
+            <MetadataItem label="Schedule Type" value={job.type} />
 
             <MetadataItem
               label="Cron Expression"
               value={job.cronExpression || "—"}
               mono
+            />
+
+            <MetadataItem
+              label="Next Run"
+              value={job.nextRunAt ? formatDate(job.nextRunAt) : "—"}
+            />
+
+            <MetadataItem
+              label="Updated At"
+              value={formatDate(job.updatedAt)}
             />
 
             <MetadataItem
@@ -440,6 +502,7 @@ export default function JobDetailsPage() {
           </div>
         </section>
 
+        {/* Payload */}
         <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.03)]">
           <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <SectionHeader
@@ -450,7 +513,7 @@ export default function JobDetailsPage() {
             />
 
             <button
-              onClick={copyPayload}
+              onClick={() => void copyPayload()}
               className="inline-flex w-fit items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3.5 py-2 text-sm font-medium text-indigo-700 transition-all hover:bg-indigo-100"
             >
               <Copy size={15} />
@@ -473,6 +536,7 @@ export default function JobDetailsPage() {
           </div>
         </section>
 
+        {/* Execution History */}
         <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.03)]">
           <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <SectionHeader
@@ -589,6 +653,7 @@ export default function JobDetailsPage() {
         </section>
       </div>
 
+      {/* Result Modal */}
       {showResult && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
@@ -615,7 +680,7 @@ export default function JobDetailsPage() {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={copyResult}
+                  onClick={() => void copyResult()}
                   className="inline-flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition-all hover:bg-indigo-100"
                 >
                   <Copy size={15} />

@@ -33,7 +33,6 @@ export default function JobsPage() {
   } = useJobs();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -92,11 +91,9 @@ export default function JobsPage() {
   const filteredJobs = jobs?.filter((job) => {
     const matchesSearch = job.name.toLowerCase().includes(search.toLowerCase());
 
-    const matchesStatus = statusFilter ? job.status === statusFilter : true;
-
     const matchesType = typeFilter ? job.type === typeFilter : true;
 
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesType;
   });
 
   if (isLoading) {
@@ -119,10 +116,11 @@ export default function JobsPage() {
   }
 
   const filteredCount = filteredJobs?.length ?? 0;
-  const hasFilters = Boolean(search || statusFilter || typeFilter);
 
+  const hasFilters = Boolean(search || typeFilter);
   return (
     <div className="space-y-8">
+      {/* Header */}
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-indigo-500">
@@ -158,6 +156,7 @@ export default function JobsPage() {
         </div>
       </div>
 
+      {/* Filters */}
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.03)]">
         <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
@@ -170,7 +169,7 @@ export default function JobsPage() {
             </h2>
 
             <p className="mt-0.5 text-xs text-slate-400">
-              Search and filter your scheduled jobs.
+              Search and filter your jobs.
             </p>
           </div>
         </div>
@@ -179,14 +178,13 @@ export default function JobsPage() {
           <SearchBar
             searchTerm={search}
             onSearchChange={setSearch}
-            statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
             typeFilter={typeFilter}
             onTypeFilterChange={setTypeFilter}
           />
         </div>
       </section>
 
+      {/* Count */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
@@ -210,7 +208,6 @@ export default function JobsPage() {
           <button
             onClick={() => {
               setSearch("");
-              setStatusFilter("");
               setTypeFilter("");
             }}
             className="w-fit text-xs font-medium text-indigo-600 transition-colors hover:text-indigo-700"
@@ -220,6 +217,7 @@ export default function JobsPage() {
         )}
       </div>
 
+      {/* Job Table */}
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.03)]">
         <JobTable
           jobs={filteredJobs ?? []}
@@ -230,6 +228,7 @@ export default function JobsPage() {
         />
       </section>
 
+      {/* Delete Modal */}
       <ConfirmDeleteModal
         isOpen={!!deleteId}
         onClose={() => setDeleteId(null)}
