@@ -23,14 +23,12 @@ model Job {
   maxRetries     Int      @default(3)
   timeoutMs      Int      @default(30000)
 
-  status JobStatus @default(ACTIVE)
-
   runs       JobRun[]
   failedJobs FailedJob[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  @@index([nextRunAt])
+  @@index([active, nextRunAt])
 }
 
 model JobRun {
@@ -78,19 +76,13 @@ model AuditLog {
 
 enum JobRunStatus {
   PENDING
+  CLAIMED
   RUNNING
   SUCCESS
   FAILED
 }
 
-enum JobStatus {
-  ACTIVE
-  QUEUED
-  RUNNING
-  COMPLETED
-  FAILED
-  PAUSED
-}
+
 enum jobruncategory{
   CRON
   ONCE

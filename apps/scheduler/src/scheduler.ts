@@ -1,19 +1,17 @@
 import { logger } from "observability";
 import { scheduleDueJobs } from "./services/jobScheduler.service.js";
 import { sleep } from "./utils/sleep.js";
+import { drainJobs } from "./services/drainjobs.service.js";
 
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL = 5000;
 
-export async function startScheduler(): Promise<void> {
-  while (true) {
-    logger.info("Polling for due jobs...");
-
+export function startScheduler() {
+  logger.info("Starting scheduler...");
+  setInterval(async () => {
     try {
-      await scheduleDueJobs();
+      await drainJobs();
     } catch (error) {
-      logger.error(error, "Scheduler polling failed");
+      console.error("Scheduler error:", error);
     }
-
-    await sleep(POLL_INTERVAL_MS);
-  }
+  }, POLL_INTERVAL);
 }
