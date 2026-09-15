@@ -1,14 +1,10 @@
 import { JobRunStatus, JobStatus, prisma } from "database";
 import { jobQueue } from "shared";
+import { logger } from "observability";
 
 import { calculateNextRun } from "./calculateNextrun.js";
 
 const BATCH_SIZE = 50;
-
-// TEMPORARY: only for testing row locking
-const LOCK_TEST_DELAY_MS = 10_000;
-
-const schedulerId = `scheduler-${process.pid}`;
 
 type DueJob = {
   id: string;
@@ -31,113 +27,132 @@ type ClaimedJob = {
 export async function scheduleDueJobs(): Promise<void> {
   const now = new Date();
 
-  console.log(`[${schedulerId}] Checking for due jobs at ${now.toISOString()}`);
+  logger.info(
+    {
+      now: now.toISOString(),
+    },
+    "Checking for due jobs",
+  );
 
   let claimedJobs: ClaimedJob[] = [];
 
   try {
-    claimedJobs = await prisma.$transaction(
-      async (tx) => {
-        const jobs = await tx.$queryRaw<DueJob[]>`
-          SELECT
-            "id",
-            "name",
-            "description",
-            "type",
-            "cronExpression",
-            "nextRunAt",
-            "priority"
-          FROM "Job"
-          WHERE
-            "status" = ${JobStatus.ACTIVE}::"JobStatus"
-            AND "nextRunAt" IS NOT NULL
-            AND "nextRunAt" <= ${now}
-          ORDER BY
-            "priority" DESC,
-            "nextRunAt" ASC
-          LIMIT ${BATCH_SIZE}
-          FOR UPDATE SKIP LOCKED
-        `;
+    claimedJobs = await prisma.$transaction(async (tx) => {
+      /**
+       * Find due ACTIVE jobs and lock them.
+       *
+       * FOR UPDATE:
+       * Prevents another scheduler from modifying
+       * the same rows while this transaction is running.
+       *
+       * SKIP LOCKED:
+       * Allows multiple scheduler instances to work
+       * concurrently without waiting for locked rows.
+       */
+      const jobs = await tx.$queryRaw<DueJob[]>`
+        SELECT
+          "id",
+          "name",
+          "description",
+          "type",
+          "cronExpression",
+          "nextRunAt",
+          "priority"
+        FROM "Job"
+        WHERE
+          "status" = ${JobStatus.ACTIVE}::"JobStatus"
+          AND "nextRunAt" IS NOT NULL
+          AND "nextRunAt" <= ${now}
+        ORDER BY
+          "priority" DESC,
+          "nextRunAt" ASC
+        LIMIT ${BATCH_SIZE}
+        FOR UPDATE SKIP LOCKED
+      `;
 
-        console.log(
-          `[${schedulerId}] Due active jobs locked:`,
-          jobs.map((job) => job.id),
-        );
+      logger.info(
+        {
+          count: jobs.length,
+        },
+        "Due active jobs locked",
+      );
 
-        if (jobs.length > 0) {
-          console.log(
-            `[${schedulerId}] 🔒 LOCK ACQUIRED for jobs:`,
-            jobs.map((job) => job.id),
-          );
+      const result: ClaimedJob[] = [];
 
-          console.log(
-            `[${schedulerId}] Holding locks for ${LOCK_TEST_DELAY_MS}ms...`,
-          );
-
-          await new Promise((resolve) =>
-            setTimeout(resolve, LOCK_TEST_DELAY_MS),
-          );
-
-          console.log(`[${schedulerId}] Finished lock test delay`);
-        }
-
-        const result: ClaimedJob[] = [];
-
-        for (const job of jobs) {
-          console.log(`[${schedulerId}] Creating JobRun for ${job.id}`);
-
-          const jobRun = await tx.jobRun.create({
-            data: {
-              jobId: job.id,
-              status: JobRunStatus.CLAIMED,
-              attempts: 1,
-            },
-          });
-
-          const nextRunAt = calculateNextRun({
-            type: job.type,
-            cronExpression: job.cronExpression,
-            currentTime: now,
-          });
-
-          await tx.job.update({
-            where: {
-              id: job.id,
-            },
-            data: {
-              nextRunAt,
-            },
-          });
-
-          console.log(`[${schedulerId}] Job claimed successfully:`, {
+      for (const job of jobs) {
+        /**
+         * Create execution record.
+         */
+        const jobRun = await tx.jobRun.create({
+          data: {
             jobId: job.id,
-            jobRunId: jobRun.id,
-          });
+            status: JobRunStatus.CLAIMED,
+            attempts: 1,
+          },
+        });
 
-          result.push({
-            jobId: job.id,
-            jobRunId: jobRun.id,
-            priority: job.priority,
-            name: job.name,
-            description: job.description,
-          });
-        }
+        /**
+         * Calculate next execution time.
+         *
+         * CRON:
+         *   next scheduled occurrence
+         *
+         * ONCE / DELAYED:
+         *   null
+         */
+        const nextRunAt = calculateNextRun({
+          type: job.type,
+          cronExpression: job.cronExpression,
+          currentTime: now,
+        });
 
-        return result;
-      },
-      {
-        // TEMPORARY: must be > LOCK_TEST_DELAY_MS
-        timeout: 15_000,
-      },
-    );
+        /**
+         * Advance nextRunAt while the Job row is still locked.
+         */
+        await tx.job.update({
+          where: {
+            id: job.id,
+          },
+          data: {
+            nextRunAt,
+          },
+        });
+
+        result.push({
+          jobId: job.id,
+          jobRunId: jobRun.id,
+          priority: job.priority,
+          name: job.name,
+          description: job.description,
+        });
+      }
+
+      return result;
+    });
   } catch (error) {
-    console.error(`[${schedulerId}] Failed to claim due jobs:`, error);
+    logger.error(
+      {
+        error: String(error),
+      },
+      "Failed to claim due jobs",
+    );
 
     return;
   }
 
-  console.log(`[${schedulerId}] Jobs claimed: ${claimedJobs.length}`);
+  logger.info(
+    {
+      count: claimedJobs.length,
+    },
+    "Jobs claimed",
+  );
 
+  /**
+   * Transaction has committed.
+   *
+   * Database locks are released before communicating
+   * with Redis/BullMQ.
+   */
   for (const job of claimedJobs) {
     try {
       const queueJob = await jobQueue.add(
@@ -151,18 +166,33 @@ export async function scheduleDueJobs(): Promise<void> {
         },
       );
 
-      console.log(`[${schedulerId}] Job queued:`, {
-        jobId: job.jobId,
-        jobRunId: job.jobRunId,
-        bullJobId: queueJob.id,
-        priority: job.priority,
-      });
+      logger.info(
+        {
+          jobId: job.jobId,
+          jobRunId: job.jobRunId,
+          bullJobId: queueJob.id,
+          priority: job.priority,
+        },
+        "Job queued",
+      );
     } catch (error) {
-      console.error(`[${schedulerId}] Failed to enqueue job:`, {
-        jobId: job.jobId,
-        jobRunId: job.jobRunId,
-        error,
-      });
+      logger.error(
+        {
+          jobId: job.jobId,
+          jobRunId: job.jobRunId,
+          error: String(error),
+        },
+        "Failed to enqueue claimed job",
+      );
+
+      /**
+       * Job remains ACTIVE.
+       *
+       * JobRun remains CLAIMED.
+       *
+       * A reconciliation/recovery mechanism should
+       * eventually detect and recover this JobRun.
+       */
     }
   }
 }
