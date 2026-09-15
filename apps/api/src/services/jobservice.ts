@@ -11,6 +11,7 @@ interface CreateJobInput {
   cronExpression?: string;
   delaySeconds?: number;
   priority?: number;
+  status?: JobStatus;
 }
 
 export function getNextCronRun(expression: string): Date {
@@ -31,8 +32,9 @@ export async function createJob(data: CreateJobInput) {
     cronExpression,
     delaySeconds,
     priority,
+    status,
   } = data;
-
+  console.log("Parsed job data:", data);
   let nextRunAt: Date | null = null;
 
   switch (type) {
@@ -80,9 +82,7 @@ export async function createJob(data: CreateJobInput) {
       jobtype,
       cronExpression,
       nextRunAt,
-
-      // Every newly created job starts in the ACTIVE state.
-      status: JobStatus.ACTIVE,
+      status,
 
       priority: priority ?? 0,
     },

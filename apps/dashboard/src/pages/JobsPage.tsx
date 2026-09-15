@@ -36,11 +36,19 @@ export default function JobsPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // ============================================================
+  // PAUSE
+  // Only ACTIVE CRON and DELAYED jobs can be paused.
+  // ONCE jobs can never be paused.
+  // ============================================================
   const handlePause = async (id: string) => {
     const job = jobs?.find((job) => job.id === id);
 
-    // Only ACTIVE CRON jobs can be paused.
-    if (!job || job.status !== "ACTIVE" || job.type !== "CRON") {
+    if (
+      !job ||
+      job.status !== "ACTIVE" ||
+      (job.type !== "CRON" && job.type !== "DELAYED")
+    ) {
       return;
     }
 
@@ -53,17 +61,24 @@ export default function JobsPage() {
         queryKey: ["jobs"],
       });
 
-      toast.success("Job paused", { id: toastId });
+      toast.success("Job paused", {
+        id: toastId,
+      });
     } catch {
-      toast.error("Failed to pause job", { id: toastId });
+      toast.error("Failed to pause job", {
+        id: toastId,
+      });
     }
   };
 
+  // ============================================================
+  // RESUME
+  // Any PAUSED job can be resumed, including ONCE.
+  // ============================================================
   const handleResume = async (id: string) => {
     const job = jobs?.find((job) => job.id === id);
 
-    // Only PAUSED CRON jobs can be resumed.
-    if (!job || job.status !== "PAUSED" || job.type !== "CRON") {
+    if (!job || job.status !== "PAUSED") {
       return;
     }
 
@@ -76,12 +91,19 @@ export default function JobsPage() {
         queryKey: ["jobs"],
       });
 
-      toast.success("Job resumed", { id: toastId });
+      toast.success("Job resumed", {
+        id: toastId,
+      });
     } catch {
-      toast.error("Failed to resume job", { id: toastId });
+      toast.error("Failed to resume job", {
+        id: toastId,
+      });
     }
   };
 
+  // ============================================================
+  // DELETE
+  // ============================================================
   const handleDelete = async () => {
     if (!deleteId) return;
 
@@ -94,14 +116,21 @@ export default function JobsPage() {
         queryKey: ["jobs"],
       });
 
-      toast.success("Job deleted", { id: toastId });
+      toast.success("Job deleted", {
+        id: toastId,
+      });
     } catch {
-      toast.error("Failed to delete job", { id: toastId });
+      toast.error("Failed to delete job", {
+        id: toastId,
+      });
     } finally {
       setDeleteId(null);
     }
   };
 
+  // ============================================================
+  // FILTERS
+  // ============================================================
   const filteredJobs = jobs?.filter((job) => {
     const matchesSearch = job.name.toLowerCase().includes(search.toLowerCase());
 
@@ -110,10 +139,16 @@ export default function JobsPage() {
     return matchesSearch && matchesType;
   });
 
+  // ============================================================
+  // LOADING
+  // ============================================================
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
+  // ============================================================
+  // ERROR
+  // ============================================================
   if (isError) {
     return (
       <ErrorState
@@ -125,6 +160,9 @@ export default function JobsPage() {
     );
   }
 
+  // ============================================================
+  // EMPTY
+  // ============================================================
   if (!jobs || jobs.length === 0) {
     return <EmptyState message="No jobs found." />;
   }

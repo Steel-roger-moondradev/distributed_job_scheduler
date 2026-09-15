@@ -38,17 +38,13 @@ export async function scheduleDueJobs(): Promise<void> {
 
   try {
     claimedJobs = await prisma.$transaction(async (tx) => {
-      /**
-       * Find due ACTIVE jobs and lock them.
-       *
-       * FOR UPDATE:
-       * Prevents another scheduler from modifying
-       * the same rows while this transaction is running.
-       *
-       * SKIP LOCKED:
-       * Allows multiple scheduler instances to work
-       * concurrently without waiting for locked rows.
-       */
+      logger.debug(
+        {
+          now: now.toISOString(),
+          batchSize: BATCH_SIZE,
+        },
+        "Scheduler attempting to acquire job row locks",
+      );
       const jobs = await tx.$queryRaw<DueJob[]>`
         SELECT
           "id",
@@ -73,8 +69,9 @@ export async function scheduleDueJobs(): Promise<void> {
       logger.info(
         {
           count: jobs.length,
+          jobIds: jobs.map((job) => job.id),
         },
-        "Due active jobs locked",
+        "Scheduler acquired job row locks",
       );
 
       const result: ClaimedJob[] = [];
@@ -90,25 +87,20 @@ export async function scheduleDueJobs(): Promise<void> {
             attempts: 1,
           },
         });
+        logger.info(
+          {
+            count: claimedJobs.length,
+            jobIds: claimedJobs.map((job) => job.jobId),
+          },
+          "Scheduler transaction committed; job row locks released",
+        );
 
-        /**
-         * Calculate next execution time.
-         *
-         * CRON:
-         *   next scheduled occurrence
-         *
-         * ONCE / DELAYED:
-         *   null
-         */
         const nextRunAt = calculateNextRun({
           type: job.type,
           cronExpression: job.cronExpression,
           currentTime: now,
         });
 
-        /**
-         * Advance nextRunAt while the Job row is still locked.
-         */
         await tx.job.update({
           where: {
             id: job.id,
@@ -147,12 +139,6 @@ export async function scheduleDueJobs(): Promise<void> {
     "Jobs claimed",
   );
 
-  /**
-   * Transaction has committed.
-   *
-   * Database locks are released before communicating
-   * with Redis/BullMQ.
-   */
   for (const job of claimedJobs) {
     try {
       const queueJob = await jobQueue.add(
@@ -184,15 +170,6 @@ export async function scheduleDueJobs(): Promise<void> {
         },
         "Failed to enqueue claimed job",
       );
-
-      /**
-       * Job remains ACTIVE.
-       *
-       * JobRun remains CLAIMED.
-       *
-       * A reconciliation/recovery mechanism should
-       * eventually detect and recover this JobRun.
-       */
     }
   }
 }

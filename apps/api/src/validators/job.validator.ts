@@ -20,4 +20,5 @@ export const createJobSchema = z.object({
   maxRetries: z.number().int().nonnegative().optional(),
 
   timeoutMs: z.number().int().positive().optional(),
+  status: z.enum(["ACTIVE", "PAUSED"]).optional(),
 });

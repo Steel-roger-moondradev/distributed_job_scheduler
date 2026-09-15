@@ -286,27 +286,12 @@ export default function JobDetailsPage() {
    * Job lifecycle state
    * ==========================================================
    */
-
   const isActive = job.status === "ACTIVE";
   const isPaused = job.status === "PAUSED";
 
-  /*
-   * Pause/Resume only makes sense for jobs that can still
-   * continue executing.
-   *
-   * ONCE / DELAYED:
-   *   ACTIVE -> can pause
-   *
-   * CRON:
-   *   ACTIVE -> can pause
-   *
-   * COMPLETED / FAILED / CANCELLED:
-   *   terminal states -> no pause/resume
-   */
-
   const canPause = isActive && (job.type === "CRON" || job.type === "DELAYED");
 
-  const canResume = isPaused && (job.type === "CRON" || job.type === "DELAYED");
+  const canResume = isPaused;
 
   return (
     <>

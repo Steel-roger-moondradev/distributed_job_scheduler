@@ -60,30 +60,38 @@ export default function JobTable({
           <tbody className="divide-y divide-slate-100">
             {jobs.map((job) => {
               /*
-               * Job status controls the job lifecycle.
-               *
-               * Only CRON jobs can be paused/resumed.
-               *
-               * ONCE:
-               *   ACTIVE -> COMPLETED
-               *   No pause/resume action.
-               *
-               * DELAYED:
-               *   ACTIVE -> COMPLETED
-               *   No pause/resume action.
+               * Job.status controls the job lifecycle.
                *
                * CRON:
                *   ACTIVE -> PAUSED -> ACTIVE
+               *
+               * DELAYED:
+               *   ACTIVE -> PAUSED -> ACTIVE
+               *
+               * ONCE:
+               *   ACTIVE -> COMPLETED
+               *   PAUSED -> ACTIVE
+               *
+               * Terminal states:
+               *   COMPLETED / FAILED / CANCELLED
+               *   No pause/resume actions.
                */
-              const canPause = job.type === "CRON" && job.status === "ACTIVE";
 
-              const canResume = job.type === "CRON" && job.status === "PAUSED";
+              // Only ACTIVE CRON and DELAYED jobs can be paused.
+              // ONCE jobs can never be paused.
+              const canPause =
+                job.status === "ACTIVE" &&
+                (job.type === "CRON" || job.type === "DELAYED");
+
+              // Any PAUSED job can be resumed, including ONCE.
+              const canResume = job.status === "PAUSED";
 
               return (
                 <tr
                   key={job.id}
                   className="group transition-colors hover:bg-indigo-50/20"
                 >
+                  {/* Job Name */}
                   <td className="px-5 py-4 sm:px-6">
                     <div className="max-w-[230px]">
                       <p
@@ -102,12 +110,14 @@ export default function JobTable({
                     </div>
                   </td>
 
+                  {/* Type */}
                   <td className="whitespace-nowrap px-5 py-4">
                     <span className="inline-flex rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
                       {job.type}
                     </span>
                   </td>
 
+                  {/* Priority */}
                   <td className="px-5 py-4">
                     <span className="text-sm font-medium text-slate-600">
                       {job.priority}
@@ -179,7 +189,7 @@ export default function JobTable({
                         <Eye size={16} strokeWidth={1.8} />
                       </button>
 
-                      {/* Pause - CRON + ACTIVE only */}
+                      {/* Pause - ACTIVE CRON or DELAYED only */}
                       {canPause && (
                         <button
                           onClick={() => onPause(job.id)}
@@ -191,7 +201,7 @@ export default function JobTable({
                         </button>
                       )}
 
-                      {/* Resume - CRON + PAUSED only */}
+                      {/* Resume - Any PAUSED job */}
                       {canResume && (
                         <button
                           onClick={() => onResume(job.id)}

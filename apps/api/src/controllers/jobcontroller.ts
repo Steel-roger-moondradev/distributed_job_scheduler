@@ -6,8 +6,9 @@ import { jobsCreated } from "observability";
 import { connection, getRedisStatus } from "shared";
 
 export async function createJob(req: Request, res: Response) {
+  console.log("REQUEST BODY controller:", req.body);
   const job = await JobService.createJob(req.body);
-
+  console.log("REQUEST BODY:", req.body);
   if (!job) {
     return res.status(404).json({
       message: "Job not found",
@@ -49,33 +50,123 @@ export async function deleteJob(req: Request, res: Response) {
 }
 
 export async function pauseJobHandler(req: Request, res: Response) {
-  const job = await prisma.job.update({
-    where: {
-      id: req.params.id as string,
-    },
-    data: {
-      status: "PAUSED",
-    },
-  });
+  try {
+    const jobId = req.params.id;
 
-  await logAudit("JOB_PAUSED", job.id);
+    if (!jobId || jobId === "undefined") {
+      return res.status(400).json({
+        message: "Job ID is required",
+      });
+    }
 
-  res.json(job);
+    const job = await prisma.job.findUnique({
+      where: {
+        id: jobId as string,
+      },
+      select: {
+        id: true,
+        type: true,
+        status: true,
+      },
+    });
+
+    if (!job) {
+      return res.status(404).json({
+        message: "Job not found",
+      });
+    }
+
+    // ONCE jobs can never be paused.
+    if (job.type === "ONCE") {
+      return res.status(400).json({
+        message: "ONCE jobs cannot be paused",
+      });
+    }
+
+    // Only ACTIVE jobs can be paused.
+    if (job.status !== "ACTIVE") {
+      return res.status(400).json({
+        message: `Job cannot be paused because its status is ${job.status}`,
+      });
+    }
+
+    // Atomically change ACTIVE -> PAUSED.
+    const updatedJob = await prisma.job.update({
+      where: {
+        id: jobId as string,
+        status: "ACTIVE",
+      },
+      data: {
+        status: "PAUSED",
+      },
+    });
+
+    await logAudit("JOB_PAUSED", updatedJob.id);
+
+    return res.json(updatedJob);
+  } catch (error) {
+    console.error("Failed to pause job:", error);
+
+    return res.status(500).json({
+      message: "Failed to pause job",
+    });
+  }
 }
 
 export async function resumeJobHandler(req: Request, res: Response) {
-  const job = await prisma.job.update({
-    where: {
-      id: req.params.id as string,
-    },
-    data: {
-      status: "ACTIVE",
-    },
-  });
+  try {
+    const jobId = req.params.id;
 
-  await logAudit("JOB_RESUMED", job.id);
+    if (!jobId || jobId === "undefined") {
+      return res.status(400).json({
+        message: "Job ID is required",
+      });
+    }
 
-  res.json(job);
+    const job = await prisma.job.findUnique({
+      where: {
+        id: jobId as string,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    if (!job) {
+      return res.status(404).json({
+        message: "Job not found",
+      });
+    }
+
+    // Only PAUSED jobs can be resumed.
+    if (job.status !== "PAUSED") {
+      return res.status(400).json({
+        message: `Job cannot be resumed because its status is ${job.status}`,
+      });
+    }
+
+    // Atomically change PAUSED -> ACTIVE.
+    const updatedJob = await prisma.job.update({
+      where: {
+        id: jobId as string,
+        status: "PAUSED",
+      },
+      data: {
+        status: "ACTIVE",
+      },
+    });
+
+    await logAudit("JOB_RESUMED", updatedJob.id);
+
+    return res.json(updatedJob);
+  } catch (error) {
+    console.error("Failed to resume job:", error);
+
+    return res.status(500).json({
+      message: "Failed to resume job",
+    });
+  }
 }
 
 export async function failedJob(req: Request, res: Response) {

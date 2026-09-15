@@ -30,7 +30,7 @@ const initialForm = {
   priority: 0,
   maxRetries: 3,
   timeoutMs: 30000,
-  active: true,
+  status: "ACTIVE" as "ACTIVE" | "PAUSED",
 };
 
 export default function CreateJob() {
@@ -126,6 +126,8 @@ export default function CreateJob() {
 
       const payload = buildPayload();
 
+      console.log("FORM STATUS:", form.status);
+
       const body = {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
@@ -146,8 +148,10 @@ export default function CreateJob() {
         priority: form.priority,
         maxRetries: form.maxRetries,
         timeoutMs: form.timeoutMs,
-        active: form.active,
+        status: form.status,
       };
+
+      console.log("REQUEST BODY:", body);
 
       await api.post("/jobs/create", body);
 
@@ -542,9 +546,13 @@ export default function CreateJob() {
             <label className="mt-6 flex cursor-pointer items-center gap-3 rounded-xl border border-teal-100 bg-teal-50/60 px-4 py-3.5 transition-colors hover:bg-teal-50">
               <input
                 type="checkbox"
-                name="active"
-                checked={form.active}
-                onChange={handleChange}
+                checked={form.status === "ACTIVE"}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    status: e.target.checked ? "ACTIVE" : "PAUSED",
+                  }))
+                }
                 className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-200"
               />
 
