@@ -1,4 +1,4 @@
-import { prisma } from "database";
+import { JobRunStatus, JobStatus, prisma } from "database";
 import { jobQueue } from "shared";
 import { logger } from "observability";
 
@@ -9,6 +9,7 @@ const BATCH_SIZE = 50;
 type DueJob = {
   id: string;
   name: string;
+  description: string | null;
   type: "CRON" | "ONCE" | "DELAYED";
   cronExpression: string | null;
   nextRunAt: Date | null;
@@ -20,6 +21,7 @@ type ClaimedJob = {
   jobRunId: string;
   priority: number;
   name: string;
+  description: string | null;
 };
 
 export async function scheduleDueJobs(): Promise<void> {
@@ -35,64 +37,68 @@ export async function scheduleDueJobs(): Promise<void> {
   let claimedJobs: ClaimedJob[] = [];
 
   try {
-    /**
-     * Everything inside this transaction happens
-     * while the selected Job rows are locked.
-     */
     claimedJobs = await prisma.$transaction(async (tx) => {
       /**
-       * Find due jobs and lock them.
+       * Find due ACTIVE jobs and lock them.
        *
        * FOR UPDATE:
-       * Locks the selected rows.
+       * Prevents another scheduler from modifying
+       * the same rows while this transaction is running.
        *
        * SKIP LOCKED:
-       * If another scheduler instance has already
-       * locked a row, skip it instead of waiting.
+       * Allows multiple scheduler instances to work
+       * concurrently without waiting for locked rows.
        */
       const jobs = await tx.$queryRaw<DueJob[]>`
-          SELECT
-            "id",
-            "name",
-            "type",
-            "cronExpression",
-            "nextRunAt",
-            "priority"
-          FROM "Job"
-          WHERE
-            "active" = true
-            AND "nextRunAt" IS NOT NULL
-            AND "nextRunAt" <= ${now}
-          ORDER BY
-            "priority" DESC,
-            "nextRunAt" ASC
-          LIMIT ${BATCH_SIZE}
-          FOR UPDATE SKIP LOCKED
-        `;
+        SELECT
+          "id",
+          "name",
+          "description",
+          "type",
+          "cronExpression",
+          "nextRunAt",
+          "priority"
+        FROM "Job"
+        WHERE
+          "status" = ${JobStatus.ACTIVE}::"JobStatus"
+          AND "nextRunAt" IS NOT NULL
+          AND "nextRunAt" <= ${now}
+        ORDER BY
+          "priority" DESC,
+          "nextRunAt" ASC
+        LIMIT ${BATCH_SIZE}
+        FOR UPDATE SKIP LOCKED
+      `;
 
       logger.info(
         {
           count: jobs.length,
         },
-        "Due jobs locked",
+        "Due active jobs locked",
       );
 
       const result: ClaimedJob[] = [];
 
       for (const job of jobs) {
         /**
-         * Create an execution record.
+         * Create execution record.
          */
         const jobRun = await tx.jobRun.create({
           data: {
             jobId: job.id,
-            status: "CLAIMED",
+            status: JobRunStatus.CLAIMED,
             attempts: 1,
           },
         });
 
         /**
-         * Calculate the next execution time.
+         * Calculate next execution time.
+         *
+         * CRON:
+         *   next scheduled occurrence
+         *
+         * ONCE / DELAYED:
+         *   null
          */
         const nextRunAt = calculateNextRun({
           type: job.type,
@@ -101,10 +107,7 @@ export async function scheduleDueJobs(): Promise<void> {
         });
 
         /**
-         * IMPORTANT:
-         *
-         * Update nextRunAt in the SAME transaction
-         * as the row lock.
+         * Advance nextRunAt while the Job row is still locked.
          */
         await tx.job.update({
           where: {
@@ -120,6 +123,7 @@ export async function scheduleDueJobs(): Promise<void> {
           jobRunId: jobRun.id,
           priority: job.priority,
           name: job.name,
+          description: job.description,
         });
       }
 
@@ -144,10 +148,10 @@ export async function scheduleDueJobs(): Promise<void> {
   );
 
   /**
-   * PostgreSQL transaction is now committed.
+   * Transaction has committed.
    *
-   * Therefore there are NO database locks being held
-   * while we communicate with Redis/BullMQ.
+   * Database locks are released before communicating
+   * with Redis/BullMQ.
    */
   for (const job of claimedJobs) {
     try {
@@ -182,14 +186,12 @@ export async function scheduleDueJobs(): Promise<void> {
       );
 
       /**
-       * DO NOT set active = false.
+       * Job remains ACTIVE.
        *
-       * active means whether the job itself is enabled.
+       * JobRun remains CLAIMED.
        *
-       * The JobRun is already CLAIMED.
-       *
-       * Recovery of failed queue insertion will be
-       * handled separately.
+       * A reconciliation/recovery mechanism should
+       * eventually detect and recover this JobRun.
        */
     }
   }

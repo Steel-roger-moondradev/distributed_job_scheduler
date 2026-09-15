@@ -37,6 +37,13 @@ export default function JobsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handlePause = async (id: string) => {
+    const job = jobs?.find((job) => job.id === id);
+
+    // Only ACTIVE CRON jobs can be paused.
+    if (!job || job.status !== "ACTIVE" || job.type !== "CRON") {
+      return;
+    }
+
     const toastId = toast.loading("Pausing job...");
 
     try {
@@ -53,6 +60,13 @@ export default function JobsPage() {
   };
 
   const handleResume = async (id: string) => {
+    const job = jobs?.find((job) => job.id === id);
+
+    // Only PAUSED CRON jobs can be resumed.
+    if (!job || job.status !== "PAUSED" || job.type !== "CRON") {
+      return;
+    }
+
     const toastId = toast.loading("Resuming job...");
 
     try {
@@ -116,8 +130,8 @@ export default function JobsPage() {
   }
 
   const filteredCount = filteredJobs?.length ?? 0;
-
   const hasFilters = Boolean(search || typeFilter);
+
   return (
     <div className="space-y-8">
       {/* Header */}

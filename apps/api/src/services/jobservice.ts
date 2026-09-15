@@ -1,4 +1,5 @@
 import { Prisma, prisma } from "database";
+import { JobStatus } from "@prisma/client";
 import { CronExpressionParser } from "cron-parser";
 
 interface CreateJobInput {
@@ -9,16 +10,18 @@ interface CreateJobInput {
   jobtype: "HTTP_REQUEST" | "EMAIL";
   cronExpression?: string;
   delaySeconds?: number;
-  priority?: number; // ADD
+  priority?: number;
 }
 
 export function getNextCronRun(expression: string): Date {
   const interval = CronExpressionParser.parse(expression);
+
   return interval.next().toDate();
 }
 
 export async function createJob(data: CreateJobInput) {
   console.log("Creating job with data:", data);
+
   const {
     name,
     description,
@@ -33,25 +36,36 @@ export async function createJob(data: CreateJobInput) {
   let nextRunAt: Date | null = null;
 
   switch (type) {
-    case "ONCE":
+    case "ONCE": {
       nextRunAt = new Date();
       break;
+    }
 
-    case "DELAYED":
-      if (typeof delaySeconds !== "number" || !Number.isFinite(delaySeconds)) {
-        throw new Error("delaySeconds must be a valid number for DELAYED jobs");
+    case "DELAYED": {
+      if (
+        typeof delaySeconds !== "number" ||
+        !Number.isFinite(delaySeconds) ||
+        delaySeconds < 0
+      ) {
+        throw new Error(
+          "delaySeconds must be a valid non-negative number for DELAYED jobs",
+        );
       }
 
       nextRunAt = new Date(Date.now() + delaySeconds * 1000);
-      break;
 
-    case "CRON":
+      break;
+    }
+
+    case "CRON": {
       if (!cronExpression) {
         throw new Error("cronExpression is required for CRON jobs");
       }
 
       nextRunAt = getNextCronRun(cronExpression);
+
       break;
+    }
 
     default:
       throw new Error("Invalid job type");
@@ -66,7 +80,10 @@ export async function createJob(data: CreateJobInput) {
       jobtype,
       cronExpression,
       nextRunAt,
-      active: true,
+
+      // Every newly created job starts in the ACTIVE state.
+      status: JobStatus.ACTIVE,
+
       priority: priority ?? 0,
     },
   });
@@ -106,6 +123,7 @@ export async function getFailedJobs() {
           id: true,
           name: true,
           type: true,
+          status: true,
         },
       },
     },
@@ -125,6 +143,7 @@ export async function getJobHistory(jobId: string) {
     },
   });
 }
+
 export async function getRecentExecutions() {
   return prisma.jobRun.findMany({
     take: 5,

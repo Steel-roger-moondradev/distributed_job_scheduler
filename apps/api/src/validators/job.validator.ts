@@ -13,11 +13,10 @@ export const createJobSchema = z.object({
 
   cronExpression: z.string().optional(),
 
-  active: z.boolean().optional(),
-
   priority: z.number().int().nonnegative().optional(),
 
   delaySeconds: z.number().nonnegative().optional(),
+
   maxRetries: z.number().int().nonnegative().optional(),
 
   timeoutMs: z.number().int().positive().optional(),

@@ -13,6 +13,7 @@ export async function createJob(req: Request, res: Response) {
       message: "Job not found",
     });
   }
+
   console.log("Job created:", job);
   jobsCreated.inc();
 
@@ -41,6 +42,7 @@ export async function getJob(req: Request, res: Response) {
 
 export async function deleteJob(req: Request, res: Response) {
   await JobService.deleteJob(req.params.id as string);
+
   await logAudit("JOB_DELETED", req.params.id as string);
 
   res.status(204).send();
@@ -52,7 +54,6 @@ export async function pauseJobHandler(req: Request, res: Response) {
       id: req.params.id as string,
     },
     data: {
-      active: false,
       status: "PAUSED",
     },
   });
@@ -68,7 +69,6 @@ export async function resumeJobHandler(req: Request, res: Response) {
       id: req.params.id as string,
     },
     data: {
-      active: true,
       status: "ACTIVE",
     },
   });
@@ -77,13 +77,16 @@ export async function resumeJobHandler(req: Request, res: Response) {
 
   res.json(job);
 }
+
 export async function failedJob(req: Request, res: Response) {
   const failedJobs = await JobService.getFailedJobs();
+
   res.json(failedJobs);
 }
 
 export async function gethealth(req: Request, res: Response) {
   const redisStatus = await getRedisStatus();
+
   const statusdb = await prisma.$queryRaw`SELECT 1`
     .then(() => "connected")
     .catch(() => "disconnected");
@@ -91,6 +94,7 @@ export async function gethealth(req: Request, res: Response) {
   const heartbeat = await connection.get("scheduler:heartbeat");
 
   const schedulerStatus = heartbeat ? "connected" : "disconnected";
+
   res.json({
     redis: redisStatus,
     database: statusdb,
@@ -102,15 +106,20 @@ export async function gethealth(req: Request, res: Response) {
 
 export const getJobHistory = async (req: Request, res: Response) => {
   const jobId = req.params.id;
+
   const jobHistory = await JobService.getJobHistory(jobId as string);
+
   res.json(jobHistory);
 };
 
 export const getRecentExecutions = async (req: Request, res: Response) => {
   const executions = await JobService.getRecentExecutions();
+
   res.json(executions);
 };
+
 export const getRecentFailedJobs = async (req: Request, res: Response) => {
   const failedExecutions = await JobService.getRecentFailedJobs();
+
   res.json(failedExecutions);
 };

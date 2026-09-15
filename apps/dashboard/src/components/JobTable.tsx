@@ -58,120 +58,165 @@ export default function JobTable({
           </thead>
 
           <tbody className="divide-y divide-slate-100">
-            {jobs.map((job) => (
-              <tr
-                key={job.id}
-                className="group transition-colors hover:bg-indigo-50/20"
-              >
-                <td className="px-5 py-4 sm:px-6">
-                  <div className="max-w-[230px]">
-                    <p
-                      className="truncate text-sm font-semibold text-slate-800 transition-colors group-hover:text-indigo-700"
-                      title={job.name}
-                    >
-                      {job.name}
-                    </p>
+            {jobs.map((job) => {
+              /*
+               * Job status controls the job lifecycle.
+               *
+               * Only CRON jobs can be paused/resumed.
+               *
+               * ONCE:
+               *   ACTIVE -> COMPLETED
+               *   No pause/resume action.
+               *
+               * DELAYED:
+               *   ACTIVE -> COMPLETED
+               *   No pause/resume action.
+               *
+               * CRON:
+               *   ACTIVE -> PAUSED -> ACTIVE
+               */
+              const canPause = job.type === "CRON" && job.status === "ACTIVE";
 
-                    <p
-                      className="mt-1 truncate font-mono text-[10px] text-slate-400"
-                      title={job.id}
-                    >
-                      {job.id}
-                    </p>
-                  </div>
-                </td>
+              const canResume = job.type === "CRON" && job.status === "PAUSED";
 
-                <td className="whitespace-nowrap px-5 py-4">
-                  <span className="inline-flex rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
-                    {job.type}
-                  </span>
-                </td>
+              return (
+                <tr
+                  key={job.id}
+                  className="group transition-colors hover:bg-indigo-50/20"
+                >
+                  <td className="px-5 py-4 sm:px-6">
+                    <div className="max-w-[230px]">
+                      <p
+                        className="truncate text-sm font-semibold text-slate-800 transition-colors group-hover:text-indigo-700"
+                        title={job.name}
+                      >
+                        {job.name}
+                      </p>
 
-                <td className="px-5 py-4">
-                  <span className="text-sm font-medium text-slate-600">
-                    {job.priority}
-                  </span>
-                </td>
+                      <p
+                        className="mt-1 truncate font-mono text-[10px] text-slate-400"
+                        title={job.id}
+                      >
+                        {job.id}
+                      </p>
+                    </div>
+                  </td>
 
-                <td className="whitespace-nowrap px-5 py-4">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                      job.active
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
+                  <td className="whitespace-nowrap px-5 py-4">
+                    <span className="inline-flex rounded-lg border border-violet-100 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
+                      {job.type}
+                    </span>
+                  </td>
+
+                  <td className="px-5 py-4">
+                    <span className="text-sm font-medium text-slate-600">
+                      {job.priority}
+                    </span>
+                  </td>
+
+                  {/* Status */}
+                  <td className="whitespace-nowrap px-5 py-4">
                     <span
-                      className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                        job.active ? "bg-emerald-500" : "bg-slate-400"
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        job.status === "ACTIVE"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : job.status === "PAUSED"
+                            ? "bg-amber-50 text-amber-700"
+                            : job.status === "COMPLETED"
+                              ? "bg-blue-50 text-blue-700"
+                              : job.status === "FAILED"
+                                ? "bg-rose-50 text-rose-700"
+                                : "bg-slate-100 text-slate-600"
                       }`}
-                    />
-
-                    {job.active ? "Active" : "Paused"}
-                  </span>
-                </td>
-
-                <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-500">
-                  {job.nextRunAt ? formatDate(job.nextRunAt) : "—"}
-                </td>
-
-                <td className="whitespace-nowrap px-5 py-4">
-                  <span className="font-mono text-xs font-medium text-slate-500">
-                    {job.timeoutMs / 1000}s
-                  </span>
-                </td>
-
-                <td className="px-5 py-4">
-                  <span className="inline-flex min-w-8 items-center justify-center rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
-                    {job.maxRetries}
-                  </span>
-                </td>
-
-                <td className="px-5 py-4">
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => onView(job.id)}
-                      aria-label={`View ${job.name}`}
-                      title="View job"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 active:scale-95"
                     >
-                      <Eye size={16} strokeWidth={1.8} />
-                    </button>
+                      <span
+                        className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                          job.status === "ACTIVE"
+                            ? "bg-emerald-500"
+                            : job.status === "PAUSED"
+                              ? "bg-amber-500"
+                              : job.status === "COMPLETED"
+                                ? "bg-blue-500"
+                                : job.status === "FAILED"
+                                  ? "bg-rose-500"
+                                  : "bg-slate-400"
+                        }`}
+                      />
 
-                    {job.active && (
+                      {job.status}
+                    </span>
+                  </td>
+
+                  {/* Next Run */}
+                  <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-500">
+                    {job.nextRunAt ? formatDate(job.nextRunAt) : "—"}
+                  </td>
+
+                  {/* Timeout */}
+                  <td className="whitespace-nowrap px-5 py-4">
+                    <span className="font-mono text-xs font-medium text-slate-500">
+                      {job.timeoutMs / 1000}s
+                    </span>
+                  </td>
+
+                  {/* Retries */}
+                  <td className="px-5 py-4">
+                    <span className="inline-flex min-w-8 items-center justify-center rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
+                      {job.maxRetries}
+                    </span>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-5 py-4">
+                    <div className="flex items-center justify-end gap-1">
+                      {/* View */}
                       <button
-                        onClick={() => onPause(job.id)}
-                        aria-label={`Pause ${job.name}`}
-                        title="Pause job"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600 active:scale-95"
+                        onClick={() => onView(job.id)}
+                        aria-label={`View ${job.name}`}
+                        title="View job"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 active:scale-95"
                       >
-                        <Pause size={16} strokeWidth={1.8} />
+                        <Eye size={16} strokeWidth={1.8} />
                       </button>
-                    )}
 
-                    {!job.active && (
+                      {/* Pause - CRON + ACTIVE only */}
+                      {canPause && (
+                        <button
+                          onClick={() => onPause(job.id)}
+                          aria-label={`Pause ${job.name}`}
+                          title="Pause job"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-amber-50 hover:text-amber-600 active:scale-95"
+                        >
+                          <Pause size={16} strokeWidth={1.8} />
+                        </button>
+                      )}
+
+                      {/* Resume - CRON + PAUSED only */}
+                      {canResume && (
+                        <button
+                          onClick={() => onResume(job.id)}
+                          aria-label={`Resume ${job.name}`}
+                          title="Resume job"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-teal-50 hover:text-teal-600 active:scale-95"
+                        >
+                          <Play size={16} strokeWidth={1.8} />
+                        </button>
+                      )}
+
+                      {/* Delete */}
                       <button
-                        onClick={() => onResume(job.id)}
-                        aria-label={`Resume ${job.name}`}
-                        title="Resume job"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-teal-50 hover:text-teal-600 active:scale-95"
+                        onClick={() => onDelete(job.id)}
+                        aria-label={`Delete ${job.name}`}
+                        title="Delete job"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 active:scale-95"
                       >
-                        <Play size={16} strokeWidth={1.8} />
+                        <Trash2 size={16} strokeWidth={1.8} />
                       </button>
-                    )}
-
-                    <button
-                      onClick={() => onDelete(job.id)}
-                      aria-label={`Delete ${job.name}`}
-                      title="Delete job"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 active:scale-95"
-                    >
-                      <Trash2 size={16} strokeWidth={1.8} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 

@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { prisma } from "database";
+import { JobRunStatus, JobStatus, Prisma, prisma } from "database";
 import { connection } from "shared";
 import {
   jobDuration,
@@ -8,11 +8,9 @@ import {
   logger,
   workerThroughput,
 } from "observability";
-import { JobRunStatus, Prisma } from "@prisma/client";
 import dotenv from "dotenv";
 
 import { httphandler, HttpHandler } from "../handler/httphandler.js";
-
 import { emailhandler, EmailHandler } from "../handler/emailhandler.js";
 
 dotenv.config({
@@ -31,6 +29,12 @@ export const jobWorker = new Worker<JobData>(
     const { jobId, jobRunId } = job.data;
 
     console.log(`🚀 EXECUTING JOB: ${job.id} | priority: ${job.opts.priority}`);
+
+    /*
+     * ==========================================================
+     * 1. Validate queue payload
+     * ==========================================================
+     */
 
     if (!jobId) {
       const err = new Error(
@@ -66,6 +70,12 @@ export const jobWorker = new Worker<JobData>(
       "Worker executing",
     );
 
+    /*
+     * ==========================================================
+     * 2. Fetch Job
+     * ==========================================================
+     */
+
     const dbJob = await prisma.job.findUnique({
       where: {
         id: jobId,
@@ -91,6 +101,12 @@ export const jobWorker = new Worker<JobData>(
       throw err;
     }
 
+    /*
+     * ==========================================================
+     * 3. Fetch JobRun
+     * ==========================================================
+     */
+
     const run = await prisma.jobRun.findUnique({
       where: {
         id: jobRunId,
@@ -113,6 +129,12 @@ export const jobWorker = new Worker<JobData>(
 
       throw err;
     }
+
+    /*
+     * ==========================================================
+     * 4. Idempotency checks
+     * ==========================================================
+     */
 
     if (run.status === JobRunStatus.SUCCESS) {
       logger.warn(
@@ -139,9 +161,37 @@ export const jobWorker = new Worker<JobData>(
       return;
     }
 
-    const workerId = `worker-${process.pid}`;
+    /*
+     * Scheduler normally creates the JobRun as CLAIMED.
+     *
+     * FAILED is also allowed because BullMQ retries the same
+     * JobRun after a failed attempt.
+     */
 
+    if (
+      run.status !== JobRunStatus.CLAIMED &&
+      run.status !== JobRunStatus.PENDING &&
+      run.status !== JobRunStatus.FAILED
+    ) {
+      logger.warn(
+        {
+          jobId,
+          jobRunId,
+          currentStatus: run.status,
+        },
+        "JobRun has unexpected status before execution",
+      );
+    }
+
+    /*
+     * ==========================================================
+     * 5. Mark JobRun RUNNING
+     * ==========================================================
+     */
+
+    const workerId = `worker-${process.pid}`;
     const startedAt = new Date();
+    const currentAttempt = job.attemptsMade + 1;
 
     await prisma.jobRun.update({
       where: {
@@ -151,7 +201,7 @@ export const jobWorker = new Worker<JobData>(
         status: JobRunStatus.RUNNING,
         workerId,
         startedAt,
-        attempts: job.attemptsMade + 1,
+        attempts: currentAttempt,
         error: null,
         finishedAt: null,
         duration: null,
@@ -164,7 +214,7 @@ export const jobWorker = new Worker<JobData>(
         jobRunId,
         workerId,
         jobType: dbJob.jobtype,
-        attempt: job.attemptsMade + 1,
+        attempt: currentAttempt,
       },
       "JobRun marked RUNNING",
     );
@@ -174,6 +224,12 @@ export const jobWorker = new Worker<JobData>(
     let executionResult: unknown = null;
 
     try {
+      /*
+       * ========================================================
+       * 6. Execute Job
+       * ========================================================
+       */
+
       switch (dbJob.jobtype) {
         case "HTTP_REQUEST": {
           const payload = dbJob.payload as unknown as HttpHandler;
@@ -251,6 +307,12 @@ export const jobWorker = new Worker<JobData>(
         }
       }
 
+      /*
+       * ========================================================
+       * 7. Execution succeeded
+       * ========================================================
+       */
+
       const durationSeconds = (Date.now() - start) / 1000;
 
       jobDuration.observe(durationSeconds);
@@ -258,6 +320,10 @@ export const jobWorker = new Worker<JobData>(
       const finishedAt = new Date();
 
       const duration = finishedAt.getTime() - startedAt.getTime();
+
+      /*
+       * First mark JobRun SUCCESS.
+       */
 
       await prisma.jobRun.update({
         where: {
@@ -272,6 +338,43 @@ export const jobWorker = new Worker<JobData>(
         },
       });
 
+      /*
+       * ========================================================
+       * 8. Update Job lifecycle
+       * ========================================================
+       *
+       * ONCE / DELAYED:
+       *   Job is permanently completed.
+       *
+       * CRON:
+       *   Job remains ACTIVE.
+       *
+       * IMPORTANT:
+       * We deliberately do not update CRON status here.
+       * This prevents an API pause/cancel operation from being
+       * accidentally overwritten by the worker.
+       */
+
+      if (dbJob.type === "ONCE" || dbJob.type === "DELAYED") {
+        await prisma.job.update({
+          where: {
+            id: jobId,
+          },
+          data: {
+            status: JobStatus.COMPLETED,
+          },
+        });
+
+        logger.info(
+          {
+            jobId,
+            jobRunId,
+            jobType: dbJob.type,
+          },
+          "Job marked COMPLETED",
+        );
+      }
+
       jobsCompleted.inc();
       workerThroughput.inc();
 
@@ -280,7 +383,7 @@ export const jobWorker = new Worker<JobData>(
           jobId,
           jobRunId,
           jobType: dbJob.jobtype,
-          attempt: job.attemptsMade + 1,
+          attempt: currentAttempt,
           duration,
         },
         "Completed Job",
@@ -289,14 +392,22 @@ export const jobWorker = new Worker<JobData>(
       return executionResult;
     } catch (error) {
       /*
-       * ==========================================================
-       * 8. Job execution failed
-       * ==========================================================
+       * ========================================================
+       * 9. Job execution failed
+       * ========================================================
        */
 
       const durationSeconds = (Date.now() - start) / 1000;
 
       jobDuration.observe(durationSeconds);
+
+      /*
+       * BullMQ attempts includes the first execution.
+       *
+       * Example:
+       * maxRetries = 3
+       * maxAttempts = 4
+       */
 
       const maxAttempts = job.opts.attempts ?? dbJob.maxRetries + 1;
 
@@ -323,6 +434,14 @@ export const jobWorker = new Worker<JobData>(
         "Execution failure",
       );
 
+      /*
+       * ========================================================
+       * 10. Mark JobRun FAILED
+       * ========================================================
+       *
+       * The same JobRun is reused for BullMQ retries.
+       */
+
       await prisma.jobRun.update({
         where: {
           id: jobRunId,
@@ -336,7 +455,17 @@ export const jobWorker = new Worker<JobData>(
         },
       });
 
+      /*
+       * ========================================================
+       * 11. Retries exhausted
+       * ========================================================
+       */
+
       if (isLastAttempt) {
+        /*
+         * Store permanently failed execution.
+         */
+
         await prisma.failedJob.create({
           data: {
             jobId,
@@ -346,16 +475,64 @@ export const jobWorker = new Worker<JobData>(
           },
         });
 
-        logger.error(
-          {
-            jobId,
-            jobRunId,
-            attempt: failedAttempt,
-            maxAttempts,
-          },
-          "Job Failed Permanently",
-        );
+        /*
+         * ONCE / DELAYED:
+         *
+         * No future execution is expected.
+         */
+
+        if (dbJob.type === "ONCE" || dbJob.type === "DELAYED") {
+          await prisma.job.update({
+            where: {
+              id: jobId,
+            },
+            data: {
+              status: JobStatus.FAILED,
+            },
+          });
+
+          logger.error(
+            {
+              jobId,
+              jobRunId,
+              jobType: dbJob.type,
+              attempt: failedAttempt,
+              maxAttempts,
+            },
+            "Job failed permanently",
+          );
+        }
+
+        /*
+         * CRON:
+         *
+         * Only this JobRun failed.
+         *
+         * The Job itself remains ACTIVE so that the next
+         * cron occurrence can be scheduled normally.
+         *
+         * DO NOT update Job.status here.
+         */
+
+        if (dbJob.type === "CRON") {
+          logger.error(
+            {
+              jobId,
+              jobRunId,
+              jobType: dbJob.type,
+              attempt: failedAttempt,
+              maxAttempts,
+            },
+            "CRON JobRun failed permanently; Job remains ACTIVE",
+          );
+        }
       } else {
+        /*
+         * Retry is still available.
+         *
+         * Do not modify Job.status.
+         */
+
         logger.warn(
           {
             jobId,
@@ -370,6 +547,10 @@ export const jobWorker = new Worker<JobData>(
       jobsFailed.inc();
       workerThroughput.inc();
 
+      /*
+       * Throw so BullMQ performs the retry.
+       */
+
       throw error;
     }
   },
@@ -379,6 +560,12 @@ export const jobWorker = new Worker<JobData>(
     concurrency: 5,
   },
 );
+
+/*
+ * ============================================================
+ * Worker Events
+ * ============================================================
+ */
 
 jobWorker.on("ready", () => {
   logger.info(

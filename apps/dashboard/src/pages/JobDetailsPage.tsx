@@ -29,6 +29,7 @@ import ConfirmDeleteModal from "../components/ConfirmDeleteModal.js";
 
 import { formatDate } from "../utils/formatDate.js";
 import { formatDuration } from "../utils/formatDuration.js";
+import JobStatusBadge from "../components/JobStatusBadge.js";
 
 interface InfoCardProps {
   title: string;
@@ -280,6 +281,33 @@ export default function JobDetailsPage() {
     return <EmptyState message="Job not found" />;
   }
 
+  /*
+   * ==========================================================
+   * Job lifecycle state
+   * ==========================================================
+   */
+
+  const isActive = job.status === "ACTIVE";
+  const isPaused = job.status === "PAUSED";
+
+  /*
+   * Pause/Resume only makes sense for jobs that can still
+   * continue executing.
+   *
+   * ONCE / DELAYED:
+   *   ACTIVE -> can pause
+   *
+   * CRON:
+   *   ACTIVE -> can pause
+   *
+   * COMPLETED / FAILED / CANCELLED:
+   *   terminal states -> no pause/resume
+   */
+
+  const canPause = isActive && (job.type === "CRON" || job.type === "DELAYED");
+
+  const canResume = isPaused && (job.type === "CRON" || job.type === "DELAYED");
+
   return (
     <>
       <div className="space-y-8">
@@ -308,21 +336,7 @@ export default function JobDetailsPage() {
                     {job.name}
                   </h1>
 
-                  <span
-                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                      job.active
-                        ? "bg-teal-50 text-teal-700"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    <span
-                      className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                        job.active ? "bg-teal-500" : "bg-slate-400"
-                      }`}
-                    />
-
-                    {job.active ? "Active" : "Paused"}
-                  </span>
+                  <JobStatusBadge status={job.status} />
                 </div>
 
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
@@ -359,7 +373,7 @@ export default function JobDetailsPage() {
                   Copy Payload
                 </button>
 
-                {job.active ? (
+                {canPause && (
                   <button
                     onClick={() => void handlePause()}
                     className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-sm font-medium text-amber-700 transition-all hover:bg-amber-100"
@@ -367,7 +381,9 @@ export default function JobDetailsPage() {
                     <Pause size={16} />
                     Pause
                   </button>
-                ) : (
+                )}
+
+                {canResume && (
                   <button
                     onClick={() => void handleResume()}
                     className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-teal-700 hover:shadow-md"
@@ -428,8 +444,20 @@ export default function JobDetailsPage() {
               icon={<CheckCircle2 size={13} />}
               accent="teal"
             >
-              <span className={job.active ? "text-teal-600" : "text-slate-400"}>
-                {job.active ? "Active" : "Paused"}
+              <span
+                className={
+                  job.status === "ACTIVE"
+                    ? "text-teal-600"
+                    : job.status === "PAUSED"
+                      ? "text-amber-600"
+                      : job.status === "FAILED"
+                        ? "text-rose-600"
+                        : job.status === "COMPLETED"
+                          ? "text-indigo-600"
+                          : "text-slate-500"
+                }
+              >
+                {job.status}
               </span>
             </InfoCard>
 
@@ -476,6 +504,8 @@ export default function JobDetailsPage() {
             <MetadataItem label="Job Type" value={job.jobtype} />
 
             <MetadataItem label="Schedule Type" value={job.type} />
+
+            <MetadataItem label="Status" value={job.status} />
 
             <MetadataItem
               label="Cron Expression"
