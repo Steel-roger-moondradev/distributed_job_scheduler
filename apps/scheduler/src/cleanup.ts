@@ -1,5 +1,5 @@
 import { connection } from "shared";
-import { logger } from "../../../packages/observability/dist/pino.js";
+import { logger } from "observability";
 
 export async function startWorkerCleanup() {
   // Run once on startup

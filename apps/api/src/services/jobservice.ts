@@ -66,7 +66,6 @@ export async function createJob(data: CreateJobInput) {
       jobtype,
       cronExpression,
       nextRunAt,
-      status: "ACTIVE",
       active: true,
       priority: priority ?? 0,
     },

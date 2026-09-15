@@ -101,9 +101,12 @@ export default function DashboardPage() {
   }
 
   const total = jobs.length;
-  const active = jobs.filter((job) => job.status === "ACTIVE").length;
-  const running = jobs.filter((job) => job.status === "RUNNING").length;
-  const failed = jobs.filter((job) => job.status === "FAILED").length;
+
+  const active = jobs.filter((job) => job.active).length;
+
+  const running = recentRuns.filter((run) => run.status === "RUNNING").length;
+
+  const failed = recentRuns.filter((run) => run.status === "FAILED").length;
 
   const connectedWorkers = workerStatus.filter(
     (worker) => worker.status === "connected",

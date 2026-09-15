@@ -1,14 +1,11 @@
-import { JobStatus } from "../type/job.js";
 import { JobRunStatus } from "../type/jobRun.js";
 
-type Status = JobStatus | JobRunStatus;
-
 interface Props {
-  status: Status;
+  status: JobRunStatus;
 }
 
 const statusConfig: Record<
-  Status,
+  JobRunStatus,
   {
     dot: string;
     bg: string;
@@ -16,20 +13,6 @@ const statusConfig: Record<
     label: string;
   }
 > = {
-  ACTIVE: {
-    dot: "bg-emerald-500",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    label: "Active",
-  },
-
-  PAUSED: {
-    dot: "bg-amber-500",
-    bg: "bg-amber-50",
-    text: "text-amber-700",
-    label: "Paused",
-  },
-
   PENDING: {
     dot: "bg-amber-500",
     bg: "bg-amber-50",
@@ -37,11 +20,11 @@ const statusConfig: Record<
     label: "Pending",
   },
 
-  QUEUED: {
-    dot: "bg-slate-400",
-    bg: "bg-slate-100",
-    text: "text-slate-600",
-    label: "Queued",
+  CLAIMED: {
+    dot: "bg-violet-500",
+    bg: "bg-violet-50",
+    text: "text-violet-700",
+    label: "Claimed",
   },
 
   RUNNING: {
@@ -63,13 +46,6 @@ const statusConfig: Record<
     bg: "bg-red-50",
     text: "text-red-700",
     label: "Failed",
-  },
-
-  COMPLETED: {
-    dot: "bg-emerald-500",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    label: "Completed",
   },
 };
 

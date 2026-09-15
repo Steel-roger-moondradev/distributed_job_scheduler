@@ -8,8 +8,7 @@ import {
   logger,
   workerThroughput,
 } from "observability";
-import { CronExpressionParser } from "cron-parser";
-import { JobStatus, JobRunStatus, Prisma } from "@prisma/client";
+import { JobRunStatus, Prisma } from "@prisma/client";
 import dotenv from "dotenv";
 
 import { httphandler, HttpHandler } from "../handler/httphandler.js";
@@ -20,14 +19,34 @@ dotenv.config({
   path: "../../.env",
 });
 
-export const jobWorker = new Worker(
+interface JobData {
+  jobId: string;
+  jobRunId: string;
+}
+
+export const jobWorker = new Worker<JobData>(
   "jobs",
+
   async (job) => {
-    const { jobId, executionId, runId: existingRunId } = job.data;
+    const { jobId, jobRunId } = job.data;
+
     console.log(`🚀 EXECUTING JOB: ${job.id} | priority: ${job.opts.priority}`);
+
     if (!jobId) {
       const err = new Error(
         "Job execution failed: No jobId provided in enqueued payload",
+      );
+
+      logger.error(err.message);
+      jobsFailed.inc();
+      workerThroughput.inc();
+
+      throw err;
+    }
+
+    if (!jobRunId) {
+      const err = new Error(
+        "Job execution failed: No jobRunId provided in enqueued payload",
       );
 
       logger.error(err.message);
@@ -41,7 +60,7 @@ export const jobWorker = new Worker(
       {
         bullmqJobId: job.id,
         jobId,
-        executionId,
+        jobRunId,
         attempt: job.attemptsMade + 1,
       },
       "Worker executing",
@@ -61,6 +80,7 @@ export const jobWorker = new Worker(
       logger.error(
         {
           jobId,
+          jobRunId,
         },
         err.message,
       );
@@ -71,85 +91,84 @@ export const jobWorker = new Worker(
       throw err;
     }
 
-    let runId = existingRunId;
-    let startedAt = new Date();
+    const run = await prisma.jobRun.findUnique({
+      where: {
+        id: jobRunId,
+      },
+    });
+
+    if (!run) {
+      const err = new Error(`JobRun ${jobRunId} not found for Job ${jobId}`);
+
+      logger.error(
+        {
+          jobId,
+          jobRunId,
+        },
+        err.message,
+      );
+
+      jobsFailed.inc();
+      workerThroughput.inc();
+
+      throw err;
+    }
+
+    if (run.status === JobRunStatus.SUCCESS) {
+      logger.warn(
+        {
+          jobId,
+          jobRunId,
+        },
+        "JobRun already completed. Skipping execution.",
+      );
+
+      return;
+    }
+
+    if (run.status === JobRunStatus.RUNNING && run.workerId) {
+      logger.warn(
+        {
+          jobId,
+          jobRunId,
+          workerId: run.workerId,
+        },
+        "JobRun is already running. Skipping duplicate execution.",
+      );
+
+      return;
+    }
 
     const workerId = `worker-${process.pid}`;
 
-    if (!runId) {
-      const run = await prisma.jobRun.create({
-        data: {
-          jobId,
-          status: JobRunStatus.RUNNING,
-          workerId,
-          attempts: 1,
-          startedAt,
-        },
-      });
+    const startedAt = new Date();
 
-      runId = run.id;
-
-      await job.updateData({
-        ...job.data,
-        runId,
-      });
-    } else {
-      const run = await prisma.jobRun.findUnique({
-        where: {
-          id: runId,
-        },
-      });
-
-      if (!run) {
-        throw new Error(`JobRun ${runId} not found`);
-      }
-
-      if (run.status === JobRunStatus.SUCCESS) {
-        logger.warn(
-          {
-            jobId,
-            runId,
-          },
-          "JobRun already marked as SUCCESS. Skipping execution.",
-        );
-
-        return;
-      }
-
-      startedAt = run.startedAt;
-
-      await prisma.jobRun.update({
-        where: {
-          id: runId,
-        },
-        data: {
-          status: JobRunStatus.RUNNING,
-          attempts: job.attemptsMade + 1,
-          error: null,
-          finishedAt: null,
-          duration: null,
-        },
-      });
-    }
+    await prisma.jobRun.update({
+      where: {
+        id: jobRunId,
+      },
+      data: {
+        status: JobRunStatus.RUNNING,
+        workerId,
+        startedAt,
+        attempts: job.attemptsMade + 1,
+        error: null,
+        finishedAt: null,
+        duration: null,
+      },
+    });
 
     logger.info(
       {
         jobId,
-        runId,
+        jobRunId,
+        workerId,
         jobType: dbJob.jobtype,
         attempt: job.attemptsMade + 1,
       },
-      "Running Job",
+      "JobRun marked RUNNING",
     );
 
-    await prisma.job.update({
-      where: {
-        id: jobId,
-      },
-      data: {
-        status: JobStatus.RUNNING,
-      },
-    });
     const start = Date.now();
 
     let executionResult: unknown = null;
@@ -158,54 +177,72 @@ export const jobWorker = new Worker(
       switch (dbJob.jobtype) {
         case "HTTP_REQUEST": {
           const payload = dbJob.payload as unknown as HttpHandler;
+
           logger.info(
             {
               jobId,
-              runId,
+              jobRunId,
               method: payload.method,
               url: payload.url,
               timeoutMs: dbJob.timeoutMs,
             },
             "Executing HTTP request",
           );
+
           const result = await httphandler(payload, dbJob.timeoutMs);
+
           executionResult = {
             status: result.status,
             statusText: result.statusText,
             headers: result.headers,
             body: result.body,
           };
+
           logger.info(
             {
               jobId,
-              runId,
+              jobRunId,
               method: payload.method,
               url: payload.url,
               status: result.status,
             },
             "HTTP request completed",
           );
+
           break;
         }
 
         case "EMAIL": {
           const payload = dbJob.payload as unknown as EmailHandler;
-          logger.info(
-            { jobId, runId, to: payload.to, subject: payload.subject },
-            "Sending email",
-          );
-          const result = await emailhandler(payload);
-          executionResult = { provider: "resend", emailId: result.id };
+
           logger.info(
             {
               jobId,
-              runId,
+              jobRunId,
+              to: payload.to,
+              subject: payload.subject,
+            },
+            "Sending email",
+          );
+
+          const result = await emailhandler(payload);
+
+          executionResult = {
+            provider: "resend",
+            emailId: result.id,
+          };
+
+          logger.info(
+            {
+              jobId,
+              jobRunId,
               emailId: result.id,
               to: payload.to,
               subject: payload.subject,
             },
             "Email sent successfully",
           );
+
           break;
         }
 
@@ -222,63 +259,18 @@ export const jobWorker = new Worker(
 
       const duration = finishedAt.getTime() - startedAt.getTime();
 
-      let nextStatus: JobStatus = JobStatus.COMPLETED;
-
-      let nextRunAt: Date | null = null;
-
-      if (dbJob.type === "CRON" && dbJob.cronExpression) {
-        nextStatus = JobStatus.ACTIVE;
-
-        try {
-          const interval = CronExpressionParser.parse(dbJob.cronExpression);
-
-          nextRunAt = interval.next().toDate();
-
-          logger.info(
-            {
-              jobId,
-              nextRunAt: nextRunAt.toISOString(),
-            },
-            "Cron next execution",
-          );
-        } catch (cronError) {
-          logger.error(
-            {
-              jobId,
-              cronExpression: dbJob.cronExpression,
-              error: String(cronError),
-            },
-            "Cron parsing error",
-          );
-
-          nextStatus = JobStatus.FAILED;
-        }
-      }
-
-      await prisma.$transaction([
-        prisma.job.update({
-          where: {
-            id: jobId,
-          },
-          data: {
-            status: nextStatus,
-            nextRunAt,
-          },
-        }),
-
-        prisma.jobRun.update({
-          where: {
-            id: runId,
-          },
-          data: {
-            status: JobRunStatus.SUCCESS,
-            finishedAt,
-            duration,
-            error: null,
-            result: executionResult as Prisma.InputJsonValue,
-          },
-        }),
-      ]);
+      await prisma.jobRun.update({
+        where: {
+          id: jobRunId,
+        },
+        data: {
+          status: JobRunStatus.SUCCESS,
+          finishedAt,
+          duration,
+          error: null,
+          result: executionResult as Prisma.InputJsonValue,
+        },
+      });
 
       jobsCompleted.inc();
       workerThroughput.inc();
@@ -286,23 +278,31 @@ export const jobWorker = new Worker(
       logger.info(
         {
           jobId,
-          runId,
+          jobRunId,
           jobType: dbJob.jobtype,
           attempt: job.attemptsMade + 1,
           duration,
         },
         "Completed Job",
       );
+
+      return executionResult;
     } catch (error) {
+      /*
+       * ==========================================================
+       * 8. Job execution failed
+       * ==========================================================
+       */
+
       const durationSeconds = (Date.now() - start) / 1000;
 
       jobDuration.observe(durationSeconds);
 
       const maxAttempts = job.opts.attempts ?? dbJob.maxRetries + 1;
 
-      const failedAttempts = job.attemptsMade + 1;
+      const failedAttempt = job.attemptsMade + 1;
 
-      const isLastAttempt = failedAttempts >= maxAttempts;
+      const isLastAttempt = failedAttempt >= maxAttempts;
 
       const finishedAt = new Date();
 
@@ -314,103 +314,56 @@ export const jobWorker = new Worker(
       logger.error(
         {
           jobId,
-          runId,
+          jobRunId,
           jobType: dbJob.jobtype,
-          attempt: failedAttempts,
+          attempt: failedAttempt,
           maxAttempts,
           error: errorMessage,
         },
         "Execution failure",
       );
 
-      let nextStatus: JobStatus = JobStatus.FAILED;
+      await prisma.jobRun.update({
+        where: {
+          id: jobRunId,
+        },
+        data: {
+          status: JobRunStatus.FAILED,
+          attempts: failedAttempt,
+          finishedAt,
+          error: errorMessage,
+          duration,
+        },
+      });
 
-      let nextRunAt: Date | null = null;
-
-      if (isLastAttempt && dbJob.type === "CRON" && dbJob.cronExpression) {
-        nextStatus = JobStatus.ACTIVE;
-
-        try {
-          const interval = CronExpressionParser.parse(dbJob.cronExpression);
-
-          nextRunAt = interval.next().toDate();
-
-          logger.info(
-            {
-              jobId,
-              nextRunAt: nextRunAt.toISOString(),
-            },
-            "Cron next execution after failure",
-          );
-        } catch (cronError) {
-          logger.error(
-            {
-              jobId,
-              cronExpression: dbJob.cronExpression,
-              error: String(cronError),
-            },
-            "Cron parsing error after failure",
-          );
-
-          nextStatus = JobStatus.FAILED;
-        }
-      }
-
-      await prisma.$transaction(async (tx) => {
-        await tx.jobRun.update({
-          where: {
-            id: runId,
-          },
+      if (isLastAttempt) {
+        await prisma.failedJob.create({
           data: {
-            status: JobRunStatus.FAILED,
-            attempts: failedAttempts,
-            finishedAt,
-            error: errorMessage,
-            duration,
+            jobId,
+            attempts: failedAttempt,
+            reason: errorMessage,
+            payload: dbJob.payload as Prisma.InputJsonValue,
           },
         });
 
-        if (isLastAttempt) {
-          await tx.job.update({
-            where: {
-              id: jobId,
-            },
-            data: {
-              status: nextStatus,
-              nextRunAt,
-            },
-          });
-
-          await tx.failedJob.create({
-            data: {
-              jobId,
-              attempts: failedAttempts,
-              reason: errorMessage,
-              payload: dbJob.payload as Prisma.InputJsonValue,
-            },
-          });
-        }
-      });
-
-      if (!isLastAttempt) {
-        logger.warn(
-          {
-            jobId,
-            runId,
-            attempt: failedAttempts,
-            maxAttempts,
-          },
-          "Retrying Job",
-        );
-      } else {
         logger.error(
           {
             jobId,
-            runId,
-            attempt: failedAttempts,
+            jobRunId,
+            attempt: failedAttempt,
             maxAttempts,
           },
           "Job Failed Permanently",
+        );
+      } else {
+        logger.warn(
+          {
+            jobId,
+            jobRunId,
+            attempt: failedAttempt,
+            maxAttempts,
+          },
+          "Retrying Job",
         );
       }
 
@@ -420,6 +373,7 @@ export const jobWorker = new Worker(
       throw error;
     }
   },
+
   {
     connection,
     concurrency: 5,

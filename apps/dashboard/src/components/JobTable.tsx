@@ -1,7 +1,6 @@
 import { Eye, Pause, Play, Trash2 } from "lucide-react";
 import { Job } from "../type/job.js";
 import { formatDate } from "../utils/formatDate.js";
-import StatusBadge from "./StatusBadge.js";
 
 interface Props {
   jobs: Job[];
@@ -95,7 +94,21 @@ export default function JobTable({
                 </td>
 
                 <td className="whitespace-nowrap px-5 py-4">
-                  <StatusBadge status={job.status} />
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      job.active
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    <span
+                      className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                        job.active ? "bg-emerald-500" : "bg-slate-400"
+                      }`}
+                    />
+
+                    {job.active ? "Active" : "Paused"}
+                  </span>
                 </td>
 
                 <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-500">
@@ -125,7 +138,7 @@ export default function JobTable({
                       <Eye size={16} strokeWidth={1.8} />
                     </button>
 
-                    {job.status === "ACTIVE" && (
+                    {job.active && (
                       <button
                         onClick={() => onPause(job.id)}
                         aria-label={`Pause ${job.name}`}
@@ -136,7 +149,7 @@ export default function JobTable({
                       </button>
                     )}
 
-                    {job.status === "PAUSED" && (
+                    {!job.active && (
                       <button
                         onClick={() => onResume(job.id)}
                         aria-label={`Resume ${job.name}`}
