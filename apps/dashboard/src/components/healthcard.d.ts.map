@@ -1,0 +1,1 @@
+{"version":3,"file":"healthcard.d.ts","sourceRoot":"","sources":["healthcard.tsx"],"names":[],"mappings":"AAEA,UAAU,eAAe;IACvB,KAAK,EAAE,MAAM,CAAC;IACd,MAAM,EAAE,SAAS,GAAG,SAAS,GAAG,OAAO,CAAC;IACxC,WAAW,CAAC,EAAE,MAAM,CAAC;CACtB;AAED,wBAAgB,UAAU,CAAC,EAAE,KAAK,EAAE,MAAM,EAAE,WAAW,EAAE,EAAE,eAAe,+BAmEzE"}

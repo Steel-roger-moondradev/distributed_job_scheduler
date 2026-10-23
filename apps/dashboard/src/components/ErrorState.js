@@ -1,0 +1,5 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { AlertCircle, RefreshCcw } from "lucide-react";
+export default function ErrorState({ message, onRetry }) {
+    return (_jsxs("div", { className: "flex flex-col items-center justify-center px-6 py-14 text-center", children: [_jsx("div", { className: "flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-600", children: _jsx(AlertCircle, { size: 20, strokeWidth: 1.8 }) }), _jsx("p", { className: "mt-4 max-w-md text-sm font-medium text-slate-700", children: message }), _jsx("p", { className: "mt-1 text-xs text-slate-400", children: "Something went wrong while loading this data." }), _jsxs("button", { onClick: onRetry, className: "mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98]", children: [_jsx(RefreshCcw, { size: 15, strokeWidth: 1.8 }), "Retry"] })] }));
+}

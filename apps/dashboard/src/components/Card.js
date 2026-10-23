@@ -1,0 +1,2 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export const Card = ({ title, value }) => (_jsxs("div", { className: "rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-sm", children: [_jsx("h3", { className: "text-xs font-medium uppercase tracking-wide text-slate-400", children: title }), _jsx("p", { className: "mt-2 text-2xl font-semibold tracking-tight text-slate-900", children: value })] }));

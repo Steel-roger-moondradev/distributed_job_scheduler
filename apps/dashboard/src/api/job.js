@@ -1,0 +1,11 @@
+import api from "./client.js";
+export const getJobs = () => api.get("/jobs/get");
+export const getJob = (id) => api.get(`/jobs/${id}`);
+export const pauseJob = (id) => api.patch(`/jobs/${id}/pause`);
+export const resumeJob = (id) => api.patch(`/jobs/${id}/resume`);
+export const deleteJob = (id) => api.delete(`/jobs/${id}/delete`);
+export const getJobHistory = (id) => api.get(`/jobs/${id}/history`);
+export const queueSize = () => api.get("/jobs/dashboard");
+console.log("queue size", queueSize());
+export const getFailedJobs = () => api.get("/failed-jobs");
+export const retryFailedJob = (id) => api.post(`/failed-jobs/${id}/retry`);
