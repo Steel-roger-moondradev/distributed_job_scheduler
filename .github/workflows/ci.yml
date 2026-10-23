@@ -19,12 +19,14 @@ jobs:
   validate:
     name: Validate repository
     runs-on: ubuntu-latest
+
     env:
       POSTGRES_USER: scheduler
       POSTGRES_PASSWORD: scheduler
       POSTGRES_DB: scheduler_db
       DATABASE_URL: postgresql://scheduler:scheduler@localhost:5432/scheduler_db
       REDIS_URL: redis://localhost:6379
+
     services:
       postgres:
         image: postgres:16
@@ -39,6 +41,7 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+
       redis:
         image: redis:7
         ports:
@@ -57,11 +60,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --foreground-scripts --loglevel verbose
+
+      - name: Verify dependency versions
+        run: |
+          node --version
+          npm --version
+          npm ls esbuild vite tsx
 
       - name: Generate Prisma Client
         run: npx prisma generate --schema=packages/database/prisma/schema.prisma
@@ -75,11 +82,8 @@ jobs:
       - name: Run workspace test scripts
         run: npm run test --workspaces --if-present
 
-      - name: Build backend packages and services
+      - name: Build all workspaces
         run: npm run build
-
-      - name: Build dashboard
-        run: npm run build --workspace=dashboard
 
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
