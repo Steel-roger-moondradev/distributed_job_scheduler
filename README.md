@@ -1,4 +1,3 @@
-
 <div align="center">
 
 # ⏱️ Distributed Job Scheduler
@@ -53,13 +52,13 @@ Supports one-time, delayed, and cron jobs — with persistent execution history,
 
 This project separates **job creation**, **scheduling**, **queuing**, and **execution** into independent services instead of one monolithic process handling everything.
 
-| Stage | Responsibility |
-|---|---|
-| **API** | Accepts commands (create/pause/resume/delete/inspect) |
-| **PostgreSQL** | Durable source of truth for job state & history |
-| **Scheduler** | Finds due jobs and safely claims them |
-| **Redis / BullMQ** | Buffers and hands off work asynchronously |
-| **Workers** | Execute the actual background work (HTTP calls, email) |
+| Stage              | Responsibility                                         |
+| ------------------ | ------------------------------------------------------ |
+| **API**            | Accepts commands (create/pause/resume/delete/inspect)  |
+| **PostgreSQL**     | Durable source of truth for job state & history        |
+| **Scheduler**      | Finds due jobs and safely claims them                  |
+| **Redis / BullMQ** | Buffers and hands off work asynchronously              |
+| **Workers**        | Execute the actual background work (HTTP calls, email) |
 
 **Core capabilities:**
 
@@ -145,16 +144,16 @@ flowchart TB
 
 <div align="center">
 
-| Component | Responsibility | Why it exists |
-|---|---|---|
-| **React Dashboard** | Operational UI | Lets operators inspect & control jobs |
-| **API** | Synchronous request handling | Keeps user-facing traffic independent of background work |
-| **PostgreSQL** | Durable source of truth | Stores job definitions & execution history |
-| **Scheduler** | Finds & claims due work | Separates *scheduling* from *execution* |
-| **Redis** | Queue & coordination state | Fast transient coordination + queue storage |
-| **BullMQ** | Reliable queue abstraction | Handles attempts, delays, and worker consumption |
-| **Worker** | Executes background work | Scales independently of API/scheduler |
-| **Prometheus / Grafana** | Metrics & visualization | Makes runtime behavior measurable and observable |
+| Component                | Responsibility               | Why it exists                                            |
+| ------------------------ | ---------------------------- | -------------------------------------------------------- |
+| **React Dashboard**      | Operational UI               | Lets operators inspect & control jobs                    |
+| **API**                  | Synchronous request handling | Keeps user-facing traffic independent of background work |
+| **PostgreSQL**           | Durable source of truth      | Stores job definitions & execution history               |
+| **Scheduler**            | Finds & claims due work      | Separates _scheduling_ from _execution_                  |
+| **Redis**                | Queue & coordination state   | Fast transient coordination + queue storage              |
+| **BullMQ**               | Reliable queue abstraction   | Handles attempts, delays, and worker consumption         |
+| **Worker**               | Executes background work     | Scales independently of API/scheduler                    |
+| **Prometheus / Grafana** | Metrics & visualization      | Makes runtime behavior measurable and observable         |
 
 </div>
 
@@ -170,6 +169,7 @@ A **database-backed scheduler + Redis queue + stateless workers** design was cho
 <br>
 
 The API accepts create/pause/resume/delete/inspect commands but never executes background work directly. If it did, a slow email call or timed-out HTTP request could consume request-server resources and degrade user-facing traffic.
+
 </details>
 
 <details>
@@ -178,6 +178,7 @@ The API accepts create/pause/resume/delete/inspect commands but never executes b
 <br>
 
 The scheduler only answers "which jobs are due right now?" — it finds due jobs, safely claims them, writes execution records, and hands work to BullMQ. It never performs the actual business logic.
+
 </details>
 
 <details>
@@ -186,6 +187,7 @@ The scheduler only answers "which jobs are due right now?" — it finds due jobs
 <br>
 
 Redis/BullMQ decouples the scheduler from the workers, providing asynchronous processing, backpressure, retry infrastructure, and buffering when workers are temporarily slower than the scheduler.
+
 </details>
 
 <details>
@@ -194,6 +196,7 @@ Redis/BullMQ decouples the scheduler from the workers, providing asynchronous pr
 <br>
 
 Workers are deliberately generic enough to run different categories of background work (HTTP/API calls, email delivery), keeping the scheduler focused purely on timing rather than implementation details.
+
 </details>
 
 <details>
@@ -201,14 +204,14 @@ Workers are deliberately generic enough to run different categories of backgroun
 
 <br>
 
-| Decision | Reasoning | Trade-off |
-|---|---|---|
-| **PostgreSQL as source of truth** | Job definitions & history are durable business state — they must survive a Redis restart | Adds DB reads/writes to the scheduling path |
-| **Separate scheduler & worker** | Independent scaling boundaries — scheduling throughput and execution throughput don't need to scale together | More processes to operate and monitor |
-| **Redis/BullMQ over direct calls** | Async execution, buffering, retries, and worker scaling; scheduler is never blocked by job duration | Additional infrastructure to run |
-| **Database locking over app-level coordination** | Multiple scheduler instances can wake up simultaneously — the DB, not app memory, arbitrates ownership | More complex transaction logic |
-| **Polling over DB-triggered scheduling** | Simple, explicit, operationally predictable | Small scheduling delay; periodic DB reads |
-| **Drain batches, not one job per tick** | Efficiently handles bursts where many jobs become due at once | Larger bursts of queue writes |
+| Decision                                         | Reasoning                                                                                                    | Trade-off                                   |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| **PostgreSQL as source of truth**                | Job definitions & history are durable business state — they must survive a Redis restart                     | Adds DB reads/writes to the scheduling path |
+| **Separate scheduler & worker**                  | Independent scaling boundaries — scheduling throughput and execution throughput don't need to scale together | More processes to operate and monitor       |
+| **Redis/BullMQ over direct calls**               | Async execution, buffering, retries, and worker scaling; scheduler is never blocked by job duration          | Additional infrastructure to run            |
+| **Database locking over app-level coordination** | Multiple scheduler instances can wake up simultaneously — the DB, not app memory, arbitrates ownership       | More complex transaction logic              |
+| **Polling over DB-triggered scheduling**         | Simple, explicit, operationally predictable                                                                  | Small scheduling delay; periodic DB reads   |
+| **Drain batches, not one job per tick**          | Efficiently handles bursts where many jobs become due at once                                                | Larger bursts of queue writes               |
 
 </details>
 
@@ -218,8 +221,8 @@ Workers are deliberately generic enough to run different categories of backgroun
 
 The scheduler is built from two complementary loops:
 
-- **Poll** — *"Should I check the database for newly due jobs?"*
-- **Drain** — *"Now that I found due work, how much should I process before sleeping again?"*
+- **Poll** — _"Should I check the database for newly due jobs?"_
+- **Drain** — _"Now that I found due work, how much should I process before sleeping again?"_
 
 Separating these avoids increasing polling frequency just because a large batch of jobs became due at once.
 
@@ -269,10 +272,10 @@ FOR UPDATE SKIP LOCKED
 LIMIT 50;
 ```
 
-| Clause | Effect |
-|---|---|
-| `FOR UPDATE` | Locks selected rows for the current transaction — no other scheduler can claim them simultaneously |
-| `SKIP LOCKED` | If a row is already locked by another scheduler, skip it instead of blocking |
+| Clause        | Effect                                                                                             |
+| ------------- | -------------------------------------------------------------------------------------------------- |
+| `FOR UPDATE`  | Locks selected rows for the current transaction — no other scheduler can claim them simultaneously |
+| `SKIP LOCKED` | If a row is already locked by another scheduler, skip it instead of blocking                       |
 
 ```mermaid
 flowchart LR
@@ -286,7 +289,7 @@ flowchart LR
 
 This lets N schedulers divide up available work without serializing on the same rows — e.g. with 100 due jobs, Scheduler A might claim 1–50 while Scheduler B claims 51–100 (exact split depends on query ordering/timing).
 
-> ⚠️ **Important:** row locking only protects the *claiming phase*. It does **not** guarantee an external side effect (like sending an email) happens exactly once — worker crashes, network failures, and queue redelivery can still cause repeat attempts. That's a separate concern, handled by idempotency (below).
+> ⚠️ **Important:** row locking only protects the _claiming phase_. It does **not** guarantee an external side effect (like sending an email) happens exactly once — worker crashes, network failures, and queue redelivery can still cause repeat attempts. That's a separate concern, handled by idempotency (below).
 
 ---
 
@@ -294,9 +297,9 @@ This lets N schedulers divide up available work without serializing on the same 
 
 Workers are stateless consumers of `{ jobId, jobRunId }` messages from BullMQ.
 
-| ID | Identifies | Example |
-|---|---|---|
-| `jobId` | The logical job definition | `daily-report` |
+| ID         | Identifies                     | Example              |
+| ---------- | ------------------------------ | -------------------- |
+| `jobId`    | The logical job definition     | `daily-report`       |
 | `jobRunId` | One specific execution attempt | `run-2026-09-18-001` |
 
 A single recurring `Job` fans out into many `JobRun` records — essential for history, retries, debugging, and metrics.
@@ -329,19 +332,20 @@ flowchart TB
 ```
 
 This costs more queues and operational complexity in exchange for stronger workload isolation.
+
 </details>
 
 ---
 
 ## ♻️ Idempotency & Duplicate Execution
 
-Distributed systems must distinguish between three *different* problems:
+Distributed systems must distinguish between three _different_ problems:
 
 1. **Duplicate job claiming** → solved by database locking (`SKIP LOCKED`)
 2. **Duplicate execution attempts** → mitigated by retries + execution state
 3. **Duplicate external side effects** → requires idempotency
 
-An operation is idempotent when running it multiple times produces the same result as running it once: `f(f(x)) = f(x)`. This matters because a worker can fail at an *ambiguous point* — e.g. after an email provider confirms send, but before the worker marks the `JobRun` complete.
+An operation is idempotent when running it multiple times produces the same result as running it once: `f(f(x)) = f(x)`. This matters because a worker can fail at an _ambiguous point_ — e.g. after an email provider confirms send, but before the worker marks the `JobRun` complete.
 
 **Strategy:** `jobRunId` acts as a stable identity for one execution attempt and can double as an idempotency key for external systems that support one:
 
@@ -350,12 +354,14 @@ Idempotency-Key: <jobRunId>
 ```
 
 > ⚠️ **This pattern is unsafe on its own:**
+>
 > ```js
 > if (!completed) {
 >   externalRequest();
 >   markCompleted();
 > }
 > ```
+>
 > Two workers can observe `completed = false` before either updates it. Idempotency requires **atomic state transitions and/or an idempotent external operation** — not just a pre-check. This project layers four complementary protections: database locking, execution state, stable `JobRun` identity, and idempotent external operations where supported.
 
 ---
@@ -412,12 +418,12 @@ erDiagram
     }
 ```
 
-| Table | Purpose |
-|---|---|
-| **`Job`** | The logical scheduled task — *what should happen*. One `Job` can produce many runs. |
-| **`JobRun`** | One execution attempt — *one time it happened*. Keeps history without overwriting the job. |
+| Table           | Purpose                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| **`Job`**       | The logical scheduled task — _what should happen_. One `Job` can produce many runs.              |
+| **`JobRun`**    | One execution attempt — _one time it happened_. Keeps history without overwriting the job.       |
 | **`FailedJob`** | Failure details stored separately so failures stay inspectable independent of current job state. |
-| **`AuditLog`** | Records state-changing actions: `JOB_CREATED`, `JOB_PAUSED`, `JOB_RESUMED`, `JOB_DELETED`. |
+| **`AuditLog`**  | Records state-changing actions: `JOB_CREATED`, `JOB_PAUSED`, `JOB_RESUMED`, `JOB_DELETED`.       |
 
 **Indexing:** due-job discovery (`status = ACTIVE AND nextRunAt <= now()`) is the scheduler's hottest query, so `Job` carries a composite index on `(status, nextRunAt)`.
 
@@ -441,7 +447,7 @@ stateDiagram-v2
 - `ONCE` jobs cannot be paused.
 - Active `CRON` and `DELAYED` jobs can be paused/resumed.
 - Completed jobs are never resumed as schedulable.
-- The scheduler checks job status *before* claiming due work.
+- The scheduler checks job status _before_ claiming due work.
 
 ---
 
@@ -464,7 +470,7 @@ flowchart TD
     class G,H bad
 ```
 
-Retries exist to recover from *transient* failures automatically. They are **not** a substitute for idempotency — repeating a non-idempotent side effect can be actively harmful.
+Retries exist to recover from _transient_ failures automatically. They are **not** a substitute for idempotency — repeating a non-idempotent side effect can be actively harmful.
 
 ---
 
@@ -656,197 +662,134 @@ npm run dev --workspace=dashboard         # Dashboard
 
 ---
 
-## 🌐 Deployment
+## Deployment Guide
 
-The codebase is built so that API, scheduler, and worker are **independent, horizontally scalable services** — but the current deployment intentionally runs them consolidated to keep hosting costs down. Scaling out later is a config/infra change, not a code change.
+<!-- TODO: add your actual deployment links if you have them. -->
 
-### Current deployment (cost-optimized)
+### Suggested Deployment Topology
 
-Frontend on **Vercel**; API, scheduler, and worker run as separate processes **inside a single Render instance** to minimize the number of paid services while still keeping the code's service boundaries intact.
+| Layer         | Provider                       | Notes                            |
+| ------------- | ------------------------------ | -------------------------------- |
+| Frontend      | Vercel / Netlify               | Static dashboard build           |
+| API           | Render / Railway / Docker host | Express API and health endpoints |
+| Scheduler     | Render / Railway / Docker host | Long-running scheduler process   |
+| Worker        | Render / Railway / Docker host | Long-running worker process      |
+| Database      | PostgreSQL managed service     | Prisma-backed persistence        |
+| Queue / Cache | Redis managed service          | Shared queue and heartbeat store |
 
-```mermaid
-flowchart TB
-    User(["🌍 User"]) --> FE["Vercel — React Dashboard"]
-    FE --> RI
+---
 
-    subgraph RI["🖥️ Single Render Instance"]
-        direction TB
-        API["API process"]
-        SCH["Scheduler process"]
-        WRK["Worker process"]
-    end
+## Monitoring & Observability
 
-    RI --> PG[("Managed PostgreSQL")]
-    RI --> RD[("Managed Redis")]
+### Metrics
 
-    style FE fill:#eaf1fb,stroke:#0070f3,color:#111
-    style RI fill:#fff8e1,stroke:#f9a825,color:#111
-    style PG fill:#e8f0fe,stroke:#336791
-    style RD fill:#fdeaea,stroke:#DC382D
+The project exposes Prometheus-compatible metrics from the API, scheduler, and worker services.
+
+Tracked signals include:
+
+- Total jobs created
+- Total jobs completed
+- Total jobs failed
+- Queue depth
+- Worker throughput
+- Job execution duration
+
+### Health Signals
+
+- API health route checks Redis, database, and scheduler heartbeat state.
+- Scheduler writes a `scheduler:heartbeat` key to Redis.
+- Worker writes per-worker heartbeat keys to Redis.
+- The dashboard can surface queue depth through the API.
+
+### Logging
+
+- API and runtime services use structured logging.
+- `LOG_LEVEL` controls logger verbosity where supported.
+
+---
+
+## Testing
+
+The repository currently has no configured workspace lint or test scripts. The CI workflow
+still runs those commands with npm's `--if-present` flag, so adding a script to any workspace
+will automatically include it without making missing tooling look like a passing test suite.
+
+Available automated validation commands are:
+
+```bash
+npm ci
+npx prisma generate --schema=packages/database/prisma/schema.prisma
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+docker compose config --quiet
 ```
 
-> ⚠️ **Trade-off:** all three processes share the same CPU/memory footprint, so a burst in worker load (e.g. a slow email provider) can compete with the API for resources. This is acceptable at current scale because the processes are lightweight and traffic is low — but it's the first thing to split when load grows.
+`npm run typecheck` covers every workspace. `npm run build` covers every backend package,
+service, and the dashboard. `npm run lint` and `npm run test` are currently no-ops until
+workspace-specific tooling and tests are added.
 
-### Target deployment (when resources allow)
+Suggested validation flows:
 
-No code changes required — each service already reads its own config and connects independently to PostgreSQL/Redis. Scaling out is purely an infrastructure decision: deploy each `apps/*` workspace as its own service and increase instance counts.
-
-```mermaid
-flowchart TB
-    User(["🌍 User"]) --> FE["Vercel — React Dashboard"]
-    FE --> API1["API instance 1"] & API2["API instance 2"] & API3["API instance N"]
-
-    API1 & API2 & API3 --> PG[("Managed PostgreSQL")]
-    API1 & API2 & API3 --> RD[("Managed Redis")]
-
-    SCH1["Scheduler 1"] --> PG
-    SCH2["Scheduler 2"] --> PG
-    SCH1 & SCH2 --> RD
-
-    RD --> W1["Worker 1"] & W2["Worker 2"] & W3["Worker N"]
-
-    style FE fill:#eaf1fb,stroke:#0070f3,color:#111
-    style PG fill:#e8f0fe,stroke:#336791
-    style RD fill:#fdeaea,stroke:#DC382D
-```
-
-| | Current | Target |
-|---|---|---|
-| API | 1 process, shared instance | N independent instances behind a load balancer |
-| Scheduler | 1 process, shared instance | Multiple instances, coordinated via `SKIP LOCKED` |
-| Worker | 1 process, shared instance | N independent instances scaled to queue depth |
-| Cost | Minimal — 1 compute instance + managed DB/Redis | Higher — separate compute per service |
-| Fault isolation | None — one crash can affect all three | Full — each service fails independently |
-
-Because the scheduler's concurrency safety (`FOR UPDATE SKIP LOCKED`, see [above](#-concurrency-safety-skip-locked)) and the worker's stateless queue-consumption model were designed for multi-instance operation from day one, moving from the current setup to the target setup is just a matter of provisioning more services — not rearchitecting.
+- Create a job and verify it appears in `/jobs/get`
+- Pause and resume a job and confirm state changes
+- Check `/health` with Redis or PostgreSQL temporarily offline
+- Verify `/metrics` exports Prometheus text format
 
 ---
 
-## 📊 Observability
+## Performance & Benchmarks
 
-Observability is treated as part of the system, not an afterthought — a successful request alone doesn't tell you whether a *distributed* system is healthy.
+- A benchmark script exists at [benchmarks/create-10000-jobs.ts](benchmarks/create-10000-jobs.ts).
+- It uses `autocannon` to stress `POST /jobs/create`.
+- No benchmark results are committed yet.
 
-**Tracked metrics:** `jobs_created_total` · `jobs_completed_total` · `jobs_failed_total` · `queue_depth` · worker throughput · job execution duration · scheduler/worker heartbeat state
-
-**Operational questions this answers:** Are jobs accumulating? Are workers alive? Are jobs slowing down? Are failures increasing? Is the queue draining?
-
-Scheduler and workers write periodic heartbeats into Redis (`scheduler:heartbeat`, `worker:<id>:heartbeat`) and register in a `workers` set, letting the API/dashboard expose live worker presence. Heartbeats are short-lived coordination signals — not durable business state.
+<!-- TODO: add your own benchmark numbers here, for example throughput, latency, and queue drain time. -->
 
 ---
 
-## 🧪 Testing
+## Roadmap
 
-<table>
-<tr><th>Area</th><th>Scenarios</th></tr>
-<tr><td><strong>Job lifecycle</strong></td><td>Create ONCE/DELAYED/CRON jobs · pause/resume · verify completed jobs can't be resumed · delete</td></tr>
-<tr><td><strong>Scheduler</strong></td><td>Due-job discovery · batch draining · multiple scheduler processes · <code>SKIP LOCKED</code> prevents duplicate claiming</td></tr>
-<tr><td><strong>Worker</strong></td><td>Successful execution · forced failure & retry · failed-job persistence · heartbeat · multi-worker consumption</td></tr>
-<tr><td><strong>Infrastructure</strong></td><td>Redis/PostgreSQL outage handling · <code>/health</code> · <code>/metrics</code> · Grafana visibility</td></tr>
-</table>
+- Add a committed `.env.example` for faster onboarding
+- Add end-to-end tests for job creation and lifecycle actions
+- Add dashboard screenshots and a short demo GIF
+- Reconcile any future dashboard calls with API routes as features expand
+- Add a deployment section with real live URLs once available
 
 ---
 
-## ⚡ Performance
+## Screenshots
 
-Load-tested `POST /jobs/create` with **10,000+ requests, 100 concurrent connections** (local, via `autocannon`):
+<!-- TODO: add screenshots or GIFs of the dashboard, job flow, and metrics views. -->
 
-| Metric | Result |
-|---|---|
-| Throughput | ~1,080 req/sec |
-| Request failures | 0% |
-| P99 latency | < ~170 ms |
-| Successful responses (single run) | 10,793 |
+# Dashboard
 
-> These are local benchmarks, not production capacity claims — actual throughput depends on DB/Redis hardware, network latency, deployment topology, and workload characteristics.
+### Overview
 
-**Independent scaling dimensions:**
+![Dashboard Overview](assets/dashboard-overview.png)
 
-```mermaid
-flowchart LR
-    subgraph API_Scale["API"]
-        C["Client"] --> A1["API 1"] & A2["API 2"] & A3["API 3"]
-    end
-    subgraph Sched_Scale["Scheduler"]
-        S1["Scheduler 1"] & S2["Scheduler 2"] --> PGX[("PostgreSQL")] --> BQ["BullMQ"]
-    end
-    subgraph Worker_Scale["Worker"]
-        BQ2["BullMQ"] --> WA["Worker 1"] & WB["Worker 2"] & WC["Worker N"]
-    end
-```
+### Recent-Executed-history
 
----
+![Dashboard Recent-Execution-History](assets/dashboard-execution-history.png)
 
-## ⚖️ Trade-offs at a Glance
+### Recent-failed-Jobs-section
 
-| Decision | Benefit | Cost |
-|---|---|---|
-| Separate API / scheduler / worker | Independent scaling & fault isolation | More services to deploy |
-| PostgreSQL as source of truth | Durable scheduling & execution state | Extra DB load & transaction complexity |
-| Redis + BullMQ | Async buffering & worker scaling | Additional infrastructure |
-| Polling | Simple, predictable | Periodic reads, small scheduling delay |
-| Drain batches | Higher scheduling efficiency | Larger bursts of queue writes |
-| `SKIP LOCKED` | Safe concurrent claiming | More complex transaction logic |
-| Explicit job status | Clear lifecycle model | More state-transition rules |
-| Job + JobRun separation | Complete execution history | More DB records |
-| Generic worker | Easy to add job types | Possible workload coupling |
-| Prometheus/Grafana | Operational visibility | Extra monitoring components |
-| Idempotency-aware execution | Safer retries & duplicate handling | Careful state + external API design required |
+![Dashboard Recent-failed-jobs](assets/dasbhoard-failedjobs.png)
 
-<details>
-<summary><strong>Design philosophy (guiding principles)</strong></summary>
+# Job-Details
 
-<br>
+### Individual-Job-Page
 
-1. **Separate durable state from transient coordination** — PostgreSQL owns business state; Redis owns queue/coordination state.
-2. **Separate scheduling from execution** — the scheduler decides *when*; the worker decides *how*.
-3. **Assume failures happen** — workers crash, networks fail, APIs time out; execution state and retries are designed in from the start.
-4. **Don't rely on a single process** — API, scheduler, and worker capacity evolve independently.
-5. **Make concurrency explicit** — concurrent schedulers coordinate via PostgreSQL transactions and row locks, not in-memory flags.
-6. **Treat duplicate execution as a real problem** — locking protects claiming, idempotency protects side effects, retries handle transient failures. These are complementary, not interchangeable.
+![Job-View-Page](assets/jobdetails.png)
 
-</details>
+### Job-metadata
 
----
+![Job-Metadata](assets/jobdetails-metadata.png)
 
-## 🗺 Roadmap
+### Job-Execution-history
 
-- [ ] CI/CD pipeline
-- [ ] Cloud deployment
-- [ ] Expanded end-to-end test suite
-- [ ] More job types
-- [ ] Stronger per-job idempotency guarantees
-- [ ] Dedicated queues per workload class
-- [ ] Worker autoscaling
-- [ ] Improved distributed scheduler coordination
-- [ ] Dead-letter / replay workflows
-- [ ] Auth/authorization (if multi-user)
-- [ ] Production deployment documentation
-
----
-
-## 🖼 Screenshots
-
-<details open>
-<summary><strong>Dashboard</strong></summary>
-
-<br>
-
-| Overview | Execution History | Failed Jobs |
-|---|---|---|
-| ![Dashboard Overview](assets/dashboard-overview.png) | ![Execution History](assets/dashboard-execution-history.png) | ![Failed Jobs](assets/dasbhoard-failedjobs.png) |
-
-</details>
-
-<details>
-<summary><strong>Job Details</strong></summary>
-
-<br>
-
-| Job Page | Metadata | Execution History |
-|---|---|---|
-| ![Job View Page](assets/jobdetails.png) | ![Job Metadata](assets/jobdetails-metadata.png) | ![Job Execution History](assets/jobdetails-executionhistory.png) |
-
-</details>
+![Job-execution-history](assets/jobdetails-executionhistory.png)
 
 ---
 
